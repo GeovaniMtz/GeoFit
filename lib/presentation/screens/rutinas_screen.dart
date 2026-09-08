@@ -24,6 +24,33 @@ class RutinasScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _elegirOrigenDeRutina(BuildContext context) async {
+    final ruta = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Nueva rutina'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, '/rutinas/nueva'),
+            child: const ListTile(
+              leading: Icon(Icons.edit_outlined),
+              title: Text('Crear manualmente'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, '/rutinas/importar'),
+            child: const ListTile(
+              leading: Icon(Icons.content_paste),
+              title: Text('Importar desde texto'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ruta == null || !context.mounted) return;
+    await _abrirFormulario(context, ruta);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rutinas = ref.watch(rutinasActivasProvider);
@@ -31,7 +58,7 @@ class RutinasScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Rutinas')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _abrirFormulario(context, '/rutinas/nueva'),
+        onPressed: () => _elegirOrigenDeRutina(context),
         icon: const Icon(Icons.add),
         label: const Text('NUEVA RUTINA'),
       ),

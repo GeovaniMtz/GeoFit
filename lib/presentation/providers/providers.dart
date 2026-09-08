@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notification_service.dart';
 import '../../data/database.dart';
 import '../../domain/progresion_service.dart';
 
@@ -13,6 +14,13 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 final progresionServiceProvider = Provider<ProgresionService>((ref) {
   return ProgresionService();
+});
+
+/// Notificaciones locales de progreso de entrenamiento — una instancia viva
+/// durante toda la app, igual que [databaseProvider].
+final notificationServiceProvider =
+    Provider<NotificacionEntrenamientoService>((ref) {
+  return NotificacionEntrenamientoService();
 });
 
 // ---- Rutinas ---------------------------------------------------------------

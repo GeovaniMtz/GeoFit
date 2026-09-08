@@ -13,6 +13,7 @@ class TarjetaDia extends ConsumerWidget {
   final void Function(int indice, EjercicioBorrador actualizado)
       onEditarEjercicio;
   final void Function(int indice) onQuitarEjercicio;
+  final void Function() onDuplicarDia;
 
   const TarjetaDia({
     super.key,
@@ -21,6 +22,7 @@ class TarjetaDia extends ConsumerWidget {
     required this.onAgregarEjercicio,
     required this.onEditarEjercicio,
     required this.onQuitarEjercicio,
+    required this.onDuplicarDia,
   });
 
   @override
@@ -32,12 +34,24 @@ class TarjetaDia extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: dia.controladorNombre,
-              decoration: InputDecoration(
-                labelText: 'Nombre del día ${indice + 1}',
-                hintText: 'p. ej. Empuje',
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: dia.controladorNombre,
+                    decoration: InputDecoration(
+                      labelText: 'Nombre del día ${indice + 1}',
+                      hintText: 'p. ej. Empuje',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy_all_outlined),
+                  tooltip: 'Duplicar día',
+                  onPressed: onDuplicarDia,
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             for (var i = 0; i < dia.ejercicios.length; i++)

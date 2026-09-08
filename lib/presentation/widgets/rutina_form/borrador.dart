@@ -13,6 +13,13 @@ class EjercicioBorrador {
   int repsMax;
   int descansoSeg;
 
+  /// Nombre que tenía en el catálogo el ejercicio de [ejercicioId] cuando se
+  /// cargó este borrador (null si es nuevo). No se actualiza con cada edición
+  /// del campo "Nombre": sirve para detectar, al guardar, si el usuario
+  /// corrigió el nombre — en ese caso hay que reflejar el cambio también en
+  /// el catálogo, en vez de descartarlo en silencio.
+  final String? nombreEjercicioOriginal;
+
   EjercicioBorrador({
     this.rutinaEjercicioId,
     this.ejercicioId,
@@ -21,6 +28,7 @@ class EjercicioBorrador {
     this.repsMin = 8,
     this.repsMax = 12,
     this.descansoSeg = 90,
+    this.nombreEjercicioOriginal,
   });
 }
 

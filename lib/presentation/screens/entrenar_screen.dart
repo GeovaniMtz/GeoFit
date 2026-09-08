@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/notification_service.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
 import '../widgets/entrenar/panel_ejercicio.dart';
@@ -21,16 +24,57 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
   int? _sesionId;
   int _indiceEjercicio = 0;
 
+  // Riverpod no permite leer providers (ref.read) dentro de dispose(): se
+  // guarda la referencia desde antes para poder cancelar la notificación
+  // ahí sin tocar `ref`.
+  late final NotificacionEntrenamientoService _notificaciones =
+      ref.read(notificationServiceProvider);
+
   @override
   void initState() {
     super.initState();
     _crearSesion();
   }
 
+  @override
+  void dispose() {
+    // No se dispara al avanzar de ejercicio (PanelEjercicio se recrea pero
+    // esta pantalla sigue montada) — solo al salir de verdad de "Entrenar".
+    // No se espera el Future: dispose() no puede ser async.
+    _notificaciones.cancelar();
+    super.dispose();
+  }
+
   Future<void> _crearSesion() async {
     final db = ref.read(databaseProvider);
-    final id = await db.iniciarSesion(widget.rutinaDiaId);
-    if (mounted) setState(() => _sesionId = id);
+    // Fire-and-forget: no bloquea la creación de la sesión con el diálogo
+    // de permisos del sistema.
+    unawaited(_notificaciones.solicitarPermiso());
+    final id = await db.iniciarOResumirSesion(widget.rutinaDiaId);
+    final ejercicios = await db.ejerciciosDeDia(widget.rutinaDiaId);
+    final setsPrevios = await db.setsDeSesion(id);
+
+    final setsPorEjercicio = <int, int>{};
+    for (final set in setsPrevios) {
+      setsPorEjercicio[set.rutinaEjercicioId] =
+          (setsPorEjercicio[set.rutinaEjercicioId] ?? 0) + 1;
+    }
+
+    // Retoma en el primer ejercicio que todavía no completó sus series en
+    // esta sesión; si ya están todas completas, se queda en el último.
+    var indice = 0;
+    for (var i = 0; i < ejercicios.length; i++) {
+      indice = i;
+      final hechos = setsPorEjercicio[ejercicios[i].id] ?? 0;
+      if (hechos < ejercicios[i].seriesObjetivo) break;
+    }
+
+    if (mounted) {
+      setState(() {
+        _sesionId = id;
+        _indiceEjercicio = indice;
+      });
+    }
   }
 
   @override
@@ -80,7 +124,10 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
                 return PanelEjercicio(
                   key: ValueKey(ejercicios[indice].id),
                   objetivo: ejercicios[indice],
+                  proximoObjetivo: esUltimo ? null : ejercicios[indice + 1],
                   sesionId: _sesionId!,
+                  numeroEjercicio: indice + 1,
+                  totalEjercicios: ejercicios.length,
                   esUltimoEjercicio: esUltimo,
                   onSiguienteEjercicio: esUltimo
                       ? null

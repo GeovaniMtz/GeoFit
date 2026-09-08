@@ -17,14 +17,20 @@ import 'punto_serie.dart';
 /// ejercicio queda completo.
 class PanelEjercicio extends ConsumerStatefulWidget {
   final RutinaEjercicio objetivo;
+  final RutinaEjercicio? proximoObjetivo;
   final int sesionId;
+  final int numeroEjercicio;
+  final int totalEjercicios;
   final bool esUltimoEjercicio;
   final VoidCallback? onSiguienteEjercicio;
 
   const PanelEjercicio({
     super.key,
     required this.objetivo,
+    this.proximoObjetivo,
     required this.sesionId,
+    required this.numeroEjercicio,
+    required this.totalEjercicios,
     required this.esUltimoEjercicio,
     required this.onSiguienteEjercicio,
   });
@@ -50,6 +56,62 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
   void initState() {
     super.initState();
     _reps = widget.objetivo.repsMin;
+    _cargarSetsPrevios();
+  }
+
+  /// Si esta sesión ya tenía sets registrados para este ejercicio (se salió
+  /// de "Entrenar" a mitad del ejercicio y se volvió a entrar), retoma el
+  /// conteo de series y la lista de "sets registrados" en vez de reiniciar
+  /// desde la serie 1.
+  Future<void> _cargarSetsPrevios() async {
+    final db = ref.read(databaseProvider);
+    final previos =
+        await db.setsDeEjercicioEnSesion(widget.sesionId, widget.objetivo.id);
+    if (!mounted) return;
+    if (previos.isNotEmpty) {
+      setState(() {
+        _numeroSet = previos.last.numeroSet + 1;
+        _registrados.addAll(previos.reversed.map((s) => (
+              numeroSet: s.numeroSet,
+              peso: s.peso,
+              reps: s.reps,
+            )));
+      });
+    }
+    unawaited(_actualizarNotificacion());
+  }
+
+  /// Muestra u oculta la notificación de progreso según el estado actual de
+  /// este ejercicio: la actualiza mientras queden series por registrar, o la
+  /// retira si esta era la última serie del último ejercicio (sesión
+  /// completa). Resuelve el nombre con una lectura puntual del catálogo —no
+  /// con el provider reactivo— porque esto es un efecto secundario que solo
+  /// debe dispararse desde puntos concretos (carga inicial y tras registrar
+  /// una serie), no en cada rebuild del widget.
+  Future<void> _actualizarNotificacion() async {
+    final servicio = ref.read(notificationServiceProvider);
+    final totalSeries = widget.objetivo.seriesObjetivo;
+
+    if (widget.esUltimoEjercicio && _numeroSet > totalSeries) {
+      await servicio.cancelar();
+      return;
+    }
+
+    final catalogo = await ref.read(databaseProvider).catalogoDeEjercicios();
+    if (!mounted) return;
+    final coincidencias =
+        catalogo.where((e) => e.id == widget.objetivo.ejercicioId);
+    final nombre =
+        coincidencias.isEmpty ? 'Ejercicio' : coincidencias.first.nombre;
+
+    await servicio.mostrarProgreso(
+      rutinaDiaId: widget.objetivo.rutinaDiaId,
+      nombreEjercicio: nombre,
+      numeroEjercicio: widget.numeroEjercicio,
+      totalEjercicios: widget.totalEjercicios,
+      numeroSet: _numeroSet > totalSeries ? totalSeries : _numeroSet,
+      totalSets: totalSeries,
+    );
   }
 
   @override
@@ -145,6 +207,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
       _numeroSet += 1;
       _guardando = false;
     });
+    unawaited(_actualizarNotificacion());
 
     if (!esUltimaSerie) {
       _iniciarDescanso();
@@ -171,9 +234,20 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
 
   @override
   Widget build(BuildContext context) {
-    final ejercicioAsync = ref.watch(catalogoDeEjerciciosProvider).whenData(
-        (lista) =>
-            lista.where((e) => e.id == widget.objetivo.ejercicioId).toList());
+    final catalogoAsync = ref.watch(catalogoDeEjerciciosProvider);
+    final ejercicioAsync = catalogoAsync.whenData((lista) =>
+        lista.where((e) => e.id == widget.objetivo.ejercicioId).toList());
+    final proximoObjetivo = widget.proximoObjetivo;
+    final nombreProximo = proximoObjetivo == null
+        ? null
+        : catalogoAsync.whenOrNull(
+            data: (lista) {
+              for (final e in lista) {
+                if (e.id == proximoObjetivo.ejercicioId) return e.nombre;
+              }
+              return null;
+            },
+          );
     ref
         .watch(historialPorEjercicioProvider(widget.objetivo.ejercicioId))
         .whenData(_capturarHistorial);
@@ -223,6 +297,15 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
             '${widget.objetivo.descansoSeg}s descanso',
             style: Theme.of(context).textTheme.bodySmall,
           ),
+          if (nombreProximo != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              'Próximo ejercicio: $nombreProximo',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
           if (_historialPrevio.isNotEmpty) ...[
             const SizedBox(height: 16),
             CajaReferencia(

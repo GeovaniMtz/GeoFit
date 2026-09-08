@@ -8,8 +8,53 @@ extension SesionesQueries on AppDatabase {
   Future<int> iniciarSesion(int rutinaDiaId) => into(sesionesEntrenamiento)
       .insert(SesionesEntrenamientoCompanion.insert(rutinaDiaId: rutinaDiaId));
 
+  /// La sesión de hoy para este día de rutina, si ya se empezó una — para
+  /// retomarla en vez de crear una nueva cada vez que se reabre "Entrenar"
+  /// (p. ej. al salir con el botón de regresar y volver a entrar).
+  Future<SesionesEntrenamientoData?> sesionDeHoy(int rutinaDiaId) {
+    final ahora = DateTime.now();
+    final inicioDia = DateTime(ahora.year, ahora.month, ahora.day);
+    final finDia = inicioDia.add(const Duration(days: 1));
+    final query = select(sesionesEntrenamiento)
+      ..where((s) =>
+          s.rutinaDiaId.equals(rutinaDiaId) &
+          s.fecha.isBiggerOrEqualValue(inicioDia) &
+          s.fecha.isSmallerThanValue(finDia))
+      ..orderBy([(s) => OrderingTerm.desc(s.fecha)])
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  /// Retoma la sesión de hoy de [rutinaDiaId] si ya existe una; si no, crea
+  /// una nueva. Así salir de "Entrenar" y volver a entrar el mismo día no
+  /// reinicia el progreso desde el primer ejercicio.
+  Future<int> iniciarOResumirSesion(int rutinaDiaId) async {
+    final existente = await sesionDeHoy(rutinaDiaId);
+    if (existente != null) return existente.id;
+    return iniciarSesion(rutinaDiaId);
+  }
+
   Future<int> registrarSet(RegistrosSetCompanion datos) =>
       into(registrosSet).insert(datos);
+
+  /// Todos los sets ya registrados en [sesionId], de cualquier ejercicio —
+  /// para saber en qué ejercicio y serie retomar al reabrir la sesión.
+  Future<List<RegistrosSetData>> setsDeSesion(int sesionId) =>
+      (select(registrosSet)..where((r) => r.sesionId.equals(sesionId))).get();
+
+  /// Los sets ya registrados en [sesionId] para un ejercicio puntual, en
+  /// orden — para retomar el conteo de series y la lista de "sets
+  /// registrados" si se vuelve a entrar a mitad de ese ejercicio.
+  Future<List<RegistrosSetData>> setsDeEjercicioEnSesion(
+    int sesionId,
+    int rutinaEjercicioId,
+  ) =>
+      (select(registrosSet)
+            ..where((r) =>
+                r.sesionId.equals(sesionId) &
+                r.rutinaEjercicioId.equals(rutinaEjercicioId))
+            ..orderBy([(r) => OrderingTerm.asc(r.numeroSet)]))
+          .get();
 
   /// Historial de sets de un ejercicio del catálogo (p.ej. "Press de banca"),
   /// sin importar en qué rutina o día se hizo — así el progreso y los PRs se

@@ -1,8 +1,10 @@
 import 'package:go_router/go_router.dart';
 
 import '../presentation/screens/entrenar_screen.dart';
+import '../presentation/screens/importar_rutina_screen.dart';
 import '../presentation/screens/main_shell.dart';
 import '../presentation/screens/rutina_form_screen.dart';
+import '../presentation/widgets/rutina_form/borrador.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -13,7 +15,13 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/rutinas/nueva',
-      builder: (context, state) => const RutinaFormScreen(),
+      builder: (context, state) => RutinaFormScreen(
+        diasIniciales: state.extra as List<DiaBorrador>?,
+      ),
+    ),
+    GoRoute(
+      path: '/rutinas/importar',
+      builder: (context, state) => const ImportarRutinaScreen(),
     ),
     GoRoute(
       path: '/rutinas/:id/editar',
