@@ -22,6 +22,9 @@ dependencies:
   # Navegación
   go_router: ^14.2.0
 
+  # Transiciones (Material Motion: fade through, shared axis, container transform)
+  animations: ^2.0.11
+
   # Gráficas de progreso
   fl_chart: ^0.68.0
 

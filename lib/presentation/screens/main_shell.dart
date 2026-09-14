@@ -16,7 +16,8 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int _indice = 0;
 
   /// Pestañas que ya se visitaron al menos una vez. Solo esas se construyen
@@ -26,6 +27,15 @@ class _MainShellState extends State<MainShell> {
   /// base de datos, y eso retrasa justo la de Inicio, la que sí se ve).
   final Set<int> _visitadas = {0};
 
+  /// Fade through entre pestañas: se apaga la pestaña actual y luego se
+  /// enciende la nueva, en vez del corte seco de un IndexedStack a secas.
+  /// El índice solo cambia cuando ya está todo invisible (ver
+  /// [_irAPantalla]), así que el salto de contenido nunca se alcanza a ver.
+  late final _controladorFade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 160),
+  )..value = 1;
+
   static const _pantallas = [
     HomeScreen(),
     RutinasScreen(),
@@ -34,20 +44,37 @@ class _MainShellState extends State<MainShell> {
     AjustesScreen(),
   ];
 
-  void _irAPantalla(int i) => setState(() {
-        _indice = i;
-        _visitadas.add(i);
-      });
+  Future<void> _irAPantalla(int i) async {
+    if (i == _indice) return;
+    await _controladorFade.reverse();
+    if (!mounted) return;
+    setState(() {
+      _indice = i;
+      _visitadas.add(i);
+    });
+    await _controladorFade.forward();
+  }
+
+  @override
+  void dispose() {
+    _controladorFade.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _indice,
-        children: [
-          for (var i = 0; i < _pantallas.length; i++)
-            _visitadas.contains(i) ? _pantallas[i] : const SizedBox.shrink(),
-        ],
+      body: FadeTransition(
+        opacity: _controladorFade,
+        child: IndexedStack(
+          index: _indice,
+          children: [
+            for (var i = 0; i < _pantallas.length; i++)
+              _visitadas.contains(i)
+                  ? _pantallas[i]
+                  : const SizedBox.shrink(),
+          ],
+        ),
       ),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
