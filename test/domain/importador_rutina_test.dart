@@ -140,6 +140,137 @@ Press banca 4x8-12
 
       expect(resultado.dias.single.ejercicios.single.nombre.length, 100);
     });
+
+    test('"al fallo" sin número de reps se registra como ejercicio (no '
+        'como un encabezado de día nuevo) con series por defecto', () {
+      final resultado = ImportadorRutina.parsear('''
+Día 1: Espalda
+Dominadas al fallo
+''');
+
+      expect(resultado.dias, hasLength(1));
+      final ejercicio = resultado.dias.single.ejercicios.single;
+      expect(ejercicio.nombre, 'Dominadas');
+      expect(ejercicio.series, 3);
+    });
+
+    test('"N fallo" y "N al fallo" capturan el número de series indicado',
+        () {
+      final resultado = ImportadorRutina.parsear('''
+Día 1: Pecho
+Fondos entre bancos 3 fallo
+Dominadas 4 al fallo
+''');
+
+      final ejercicios = resultado.dias.single.ejercicios;
+      expect(ejercicios[0].nombre, 'Fondos entre bancos');
+      expect(ejercicios[0].series, 3);
+      expect(ejercicios[1].nombre, 'Dominadas');
+      expect(ejercicios[1].series, 4);
+    });
+
+    test('una lista de reps por serie ("10, 8, 8, 6", pirámide '
+        'descendente) se interpreta como esa cantidad de series con el '
+        'rango completo', () {
+      final resultado = ImportadorRutina.parsear('''
+Día 1: Pecho
+Press banca 10, 8, 8, 6
+''');
+
+      final ejercicio = resultado.dias.single.ejercicios.single;
+      expect(ejercicio.nombre, 'Press banca');
+      expect(ejercicio.series, 4);
+      expect(ejercicio.repsMin, 6);
+      expect(ejercicio.repsMax, 10);
+    });
+
+    test(
+        'un ejercicio que perdió su columna de series (foto real: '
+        '"Remo horizontal a una mano con mancuerna" sin su "3 x 8") no '
+        'se convierte en un día fantasma que le roba los ejercicios '
+        'siguientes al día real', () {
+      final resultado = ImportadorRutina.parsear('''
+MARTES Espalda - Biceps
+Dominadas 3x8
+Remo horizontal a una mano con mancuerna
+Remo sentado en polea con agarre abierto 2x8
+Polea al pecho 3x8-10
+''');
+
+      expect(resultado.dias, hasLength(1));
+      expect(resultado.dias.single.nombre, 'MARTES Espalda - Biceps');
+      expect(
+        resultado.dias.single.ejercicios.map((e) => e.nombre).toList(),
+        ['Dominadas', 'Remo sentado en polea con agarre abierto', 'Polea al pecho'],
+      );
+      expect(
+        resultado.lineasNoReconocidas,
+        contains('Remo horizontal a una mano con mancuerna'),
+      );
+    });
+
+    test(
+        'un encabezado de día real sin patrón de día de la semana ni '
+        '"Día N" (p. ej. "Push", "Full body") sigue abriendo un día '
+        'nuevo mientras el día anterior ya tenga ejercicios', () {
+      final resultado = ImportadorRutina.parsear('''
+Push
+Press banca 4x8-12
+
+Pull
+Dominadas 4x6-10
+''');
+
+      expect(resultado.dias, hasLength(2));
+      expect(resultado.dias[0].nombre, 'Push');
+      expect(resultado.dias[1].nombre, 'Pull');
+    });
+
+    test(
+        'un día real cuyo PRIMER ejercicio perdió su columna de series no '
+        'se descarta como "vacío" (foto real: "JUEVES Hombros - '
+        'Antebrazos" se perdía y "Press frontal con barra 3x" — un '
+        'ejercicio roto, sin el "10" tras la x — quedaba de nombre de día '
+        'en su lugar)', () {
+      final resultado = ImportadorRutina.parsear('''
+MARTES Espalda - Biceps
+Dominadas 3x8
+JUEVES Hombros - Antebrazos
+Press frontal con barra 3x
+Pajaros 3x10
+Press Arnold 4x10
+''');
+
+      expect(resultado.dias, hasLength(2));
+      expect(resultado.dias[0].nombre, 'MARTES Espalda - Biceps');
+      expect(resultado.dias[1].nombre, 'JUEVES Hombros - Antebrazos');
+      expect(
+        resultado.dias[1].ejercicios.map((e) => e.nombre).toList(),
+        ['Pajaros', 'Press Arnold'],
+      );
+      expect(
+        resultado.lineasNoReconocidas,
+        contains('Press frontal con barra 3x'),
+      );
+    });
+
+    test(
+        'una tabla con "al fallo" repetido ya no se fragmenta en días '
+        'fantasma (regresión del bug donde una rutina de 2 días se leía '
+        'como 32 "días")', () {
+      final resultado = ImportadorRutina.parsear('''
+Día 1: Pecho y espalda
+Press banca inclinado 4 x 12
+Dominadas al fallo
+Aperturas inclinadas 3x12
+Jalón tras nuca 3 x 12
+Dominadas al fallo
+Remo con barra 3 x 12
+''');
+
+      expect(resultado.dias, hasLength(1));
+      expect(resultado.dias.single.ejercicios, hasLength(6));
+    });
   });
 
   group('ImportadorRutina.buscarCoincidencia', () {
@@ -181,6 +312,46 @@ Press banca 4x8-12
       final match =
           ImportadorRutina.buscarCoincidencia('Press militar', catalogo);
       expect(match, isNull);
+    });
+
+    test('match por variante de plural y orden de palabras (via stemming)',
+        () {
+      final catalogo = [ejercicio(1, 'Curl de bíceps con mancuernas')];
+      final match =
+          ImportadorRutina.buscarCoincidencia('Curls mancuerna biceps', catalogo);
+      expect(match?.id, 1);
+    });
+
+    test(
+        'el guardrail de grupo muscular evita confundir tríceps con '
+        'cuádriceps aunque el texto se parezca mucho', () {
+      // Antes de este guardrail, la sola distancia de edición entre
+      // "extension de triceps" y "extension de cuadriceps" (comparten el
+      // sufijo "riceps") cruzaba el umbral y las fusionaba por error.
+      final catalogo = [ejercicio(1, 'Extensión de cuádriceps')];
+      final match = ImportadorRutina.buscarCoincidencia(
+          'Extensión de tríceps', catalogo);
+      expect(match, isNull);
+    });
+
+    test(
+        'el guardrail de ángulo evita confundir press inclinado con press '
+        'declinado aunque casi todo el texto sea igual', () {
+      final catalogo = [ejercicio(1, 'Press banca declinado')];
+      final match = ImportadorRutina.buscarCoincidencia(
+          'Press banca inclinado', catalogo);
+      expect(match, isNull);
+    });
+
+    test(
+        'el guardrail de grupo muscular no bloquea cuando ambos nombres '
+        'mencionan el mismo músculo', () {
+      final catalogo = [
+        ejercicio(1, 'Extensión de tríceps en polea alta con cuerda'),
+      ];
+      final match = ImportadorRutina.buscarCoincidencia(
+          'Extension triceps polea cuerda', catalogo);
+      expect(match?.id, 1);
     });
   });
 }

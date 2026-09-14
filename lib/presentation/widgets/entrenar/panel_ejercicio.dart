@@ -23,6 +23,8 @@ class PanelEjercicio extends ConsumerStatefulWidget {
   final int totalEjercicios;
   final bool esUltimoEjercicio;
   final VoidCallback? onSiguienteEjercicio;
+  final VoidCallback? onAplazarEjercicio;
+  final VoidCallback onRutinaCompletada;
 
   const PanelEjercicio({
     super.key,
@@ -33,19 +35,32 @@ class PanelEjercicio extends ConsumerStatefulWidget {
     required this.totalEjercicios,
     required this.esUltimoEjercicio,
     required this.onSiguienteEjercicio,
+    this.onAplazarEjercicio,
+    required this.onRutinaCompletada,
   });
 
   @override
   ConsumerState<PanelEjercicio> createState() => _PanelEjercicioState();
 }
 
-class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
+class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
+    with TickerProviderStateMixin {
   int _numeroSet = 1;
   double _peso = 20;
   int _reps = 8;
   bool _guardando = false;
   Timer? _timerDescanso;
   int _segundosRestantes = 0;
+
+  // Al registrar la última serie del ejercicio, se avanza solo tras una
+  // breve celebración en vez de esperar a que el usuario toque el botón.
+  // Se usa un AnimationController (en vez de un Timer suelto) para que su
+  // ticker mantenga "viva" la animación durante toda la espera: así
+  // pumpAndSettle() en los tests no la da por terminada a medio camino,
+  // como pasaría con un Timer que no programa frames por sí solo.
+  AnimationController? _controladorCelebracion;
+  bool _celebrando = false;
+  bool _avanzado = false;
 
   bool _historialCapturado = false;
   List<RegistroConFecha> _historialPrevio = const [];
@@ -77,6 +92,11 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
               reps: s.reps,
             )));
       });
+      // Se salió de "Entrenar" justo después de la última serie, antes de
+      // que el avance automático llegara a dispararse: lo retoma ahora.
+      if (_numeroSet > widget.objetivo.seriesObjetivo) {
+        _iniciarCelebracion();
+      }
     }
     unawaited(_actualizarNotificacion());
   }
@@ -117,6 +137,10 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
   @override
   void dispose() {
     _timerDescanso?.cancel();
+    // stop() antes de dispose(): un AnimationController no puede
+    // destruirse mientras sigue animando (lanza un assert en debug/test).
+    _controladorCelebracion?.stop();
+    _controladorCelebracion?.dispose();
     super.dispose();
   }
 
@@ -162,6 +186,48 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
     _timerDescanso?.cancel();
     HapticFeedback.mediumImpact();
     setState(() => _segundosRestantes = 0);
+  }
+
+  /// Muestra la celebración de "ejercicio completado" y, tras una pausa
+  /// breve, avanza solo — sin esperar un toque del usuario. El toque sobre
+  /// el overlay (o sobre el botón principal, que queda con la misma acción
+  /// como respaldo) puede adelantar el avance llamando a [_avanzar] antes.
+  void _iniciarCelebracion() {
+    if (_celebrando || _avanzado) return;
+    setState(() => _celebrando = true);
+    HapticFeedback.mediumImpact();
+    final controlador = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    );
+    _controladorCelebracion = controlador;
+    controlador.forward().whenComplete(_avanzar);
+  }
+
+  /// El ejercicio actual no se puede hacer justo ahora (p. ej. la máquina
+  /// está ocupada): lo manda al final de la cola de esta sesión y pasa al
+  /// siguiente. Los sets que ya llevaba registrados no se pierden — se
+  /// retoman cuando le vuelva a tocar.
+  void _aplazar() {
+    final onAplazar = widget.onAplazarEjercicio;
+    if (onAplazar == null) return;
+    HapticFeedback.selectionClick();
+    onAplazar();
+  }
+
+  void _avanzar() {
+    if (_avanzado) return;
+    _avanzado = true;
+    // stop() antes de dispose(): si se adelanta el avance con un toque, el
+    // controlador todavía puede seguir animando en ese momento.
+    _controladorCelebracion?.stop();
+    _controladorCelebracion?.dispose();
+    _controladorCelebracion = null;
+    if (widget.esUltimoEjercicio) {
+      widget.onRutinaCompletada();
+    } else {
+      widget.onSiguienteEjercicio?.call();
+    }
   }
 
   Future<void> _registrarSet() async {
@@ -211,6 +277,8 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
 
     if (!esUltimaSerie) {
       _iniciarDescanso();
+    } else {
+      _iniciarCelebracion();
     }
 
     if (esPr) {
@@ -261,247 +329,336 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio> {
     if (_guardando || descansando) {
       accionBoton = null;
     } else if (sesionCompleta) {
-      accionBoton = widget.onSiguienteEjercicio;
+      // Sirve de respaldo tocable por si el avance automático no llegó a
+      // dispararse (o el usuario no quiere esperar la celebración).
+      accionBoton = _avanzar;
     } else {
       accionBoton = _registrarSet;
     }
 
     String textoBoton;
     if (sesionCompleta) {
-      textoBoton = widget.esUltimoEjercicio
-          ? 'SESIÓN COMPLETADA'
-          : 'SIGUIENTE EJERCICIO';
+      textoBoton =
+          widget.esUltimoEjercicio ? 'FINALIZAR RUTINA' : 'SIGUIENTE EJERCICIO';
     } else if (descansando) {
       textoBoton = 'DESCANSANDO…';
     } else {
       textoBoton = 'REGISTRAR SERIE';
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ejercicioAsync.when(
-            loading: () => const Text('Cargando…'),
-            error: (e, _) => const Text('No se pudo cargar.'),
-            data: (lista) => Text(
-              lista.isEmpty ? 'Ejercicio' : lista.first.nombre,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Objetivo: $totalSeries series · '
-            '${widget.objetivo.repsMin}-${widget.objetivo.repsMax} reps · '
-            '${widget.objetivo.descansoSeg}s descanso',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          if (nombreProximo != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              'Próximo ejercicio: $nombreProximo',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-          if (_historialPrevio.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            CajaReferencia(
-              peso: _formatearPeso(_historialPrevio.first.registro.peso),
-              reps: _historialPrevio.first.registro.reps,
-            ),
-          ],
-          const SizedBox(height: 22),
-          Center(
-            child: Column(
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 1; i <= totalSeries; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4.5),
-                        child: PuntoSerie(
-                          estado: i < _numeroSet
-                              ? EstadoPunto.hecho
-                              : (i == _numeroSet
-                                  ? EstadoPunto.actual
-                                  : EstadoPunto.pendiente),
-                        ),
-                      ),
-                  ],
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ejercicioAsync.when(
+                loading: () => const Text('Cargando…'),
+                error: (e, _) => const Text('No se pudo cargar.'),
+                data: (lista) => Text(
+                  lista.isEmpty ? 'Ejercicio' : lista.first.nombre,
+                  style: Theme.of(context).textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 8),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Objetivo: $totalSeries series · '
+                '${widget.objetivo.repsMin}-${widget.objetivo.repsMax} reps · '
+                '${widget.objetivo.descansoSeg}s descanso',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              if (nombreProximo != null) ...[
+                const SizedBox(height: 2),
                 Text(
-                  'SERIE ${sesionCompleta ? totalSeries : _numeroSet}/'
-                  '$totalSeries',
-                  style: Theme.of(context).textTheme.labelSmall,
+                  'Próximo ejercicio: $nombreProximo',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              BotonStepper(
-                icono: Icons.remove,
-                tooltip: 'Restar peso',
-                onPressed: sesionCompleta ? null : _decPeso,
-              ),
-              SizedBox(
-                width: 150,
+              if (_historialPrevio.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                CajaReferencia(
+                  peso: _formatearPeso(_historialPrevio.first.registro.peso),
+                  reps: _historialPrevio.first.registro.reps,
+                ),
+              ],
+              const SizedBox(height: 22),
+              Center(
                 child: Column(
                   children: [
-                    Text(_formatearPeso(_peso),
-                        style: Theme.of(context).textTheme.displaySmall),
-                    Text('KG', style: Theme.of(context).textTheme.labelSmall),
-                  ],
-                ),
-              ),
-              BotonStepper(
-                icono: Icons.add,
-                tooltip: 'Sumar peso',
-                onPressed: sesionCompleta ? null : _incPeso,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHigh,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: colorScheme.outlineVariant),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Reps',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.onSurfaceVariant)),
-                Row(
-                  children: [
-                    BotonStepper(
-                      icono: Icons.remove,
-                      tamano: 44,
-                      tooltip: 'Restar repeticiones',
-                      onPressed: sesionCompleta ? null : _decReps,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (var i = 1; i <= totalSeries; i++)
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 4.5),
+                            child: PuntoSerie(
+                              estado: i < _numeroSet
+                                  ? EstadoPunto.hecho
+                                  : (i == _numeroSet
+                                      ? EstadoPunto.actual
+                                      : EstadoPunto.pendiente),
+                            ),
+                          ),
+                      ],
                     ),
-                    SizedBox(
-                      width: 44,
-                      child: Text(
-                        '$_reps',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    BotonStepper(
-                      icono: Icons.add,
-                      tamano: 44,
-                      tooltip: 'Sumar repeticiones',
-                      onPressed: sesionCompleta ? null : _incReps,
+                    const SizedBox(height: 8),
+                    Text(
+                      'SERIE ${sesionCompleta ? totalSeries : _numeroSet}/'
+                      '$totalSeries',
+                      style: Theme.of(context).textTheme.labelSmall,
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          if (descansando) ...[
-            const SizedBox(height: 16),
-            Material(
-              color: colorScheme.primary.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: _saltarDescanso,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: colorScheme.primary.withValues(alpha: 0.5)),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  BotonStepper(
+                    icono: Icons.remove,
+                    tooltip: 'Restar peso',
+                    onPressed: sesionCompleta ? null : _decPeso,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('DESCANSO',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(color: colorScheme.primary)),
-                          Text('Toca para saltar',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                      color: colorScheme.primary
-                                          .withValues(alpha: 0.7))),
-                        ],
-                      ),
-                      Text(
-                        _formatearTiempo(_segundosRestantes),
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(color: colorScheme.primary),
-                      ),
-                    ],
+                  SizedBox(
+                    width: 150,
+                    child: Column(
+                      children: [
+                        Text(_formatearPeso(_peso),
+                            style: Theme.of(context).textTheme.displaySmall),
+                        Text('KG',
+                            style: Theme.of(context).textTheme.labelSmall),
+                      ],
+                    ),
                   ),
+                  BotonStepper(
+                    icono: Icons.add,
+                    tooltip: 'Sumar peso',
+                    onPressed: sesionCompleta ? null : _incPeso,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: colorScheme.outlineVariant),
                 ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: accionBoton,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-              ),
-              child: Text(textoBoton),
-            ),
-          ),
-          if (_registrados.isNotEmpty) ...[
-            const SizedBox(height: 24),
-            Text('SETS REGISTRADOS',
-                style: Theme.of(context).textTheme.labelSmall),
-            const SizedBox(height: 8),
-            for (final r in _registrados)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    Text('Reps',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: colorScheme.onSurfaceVariant)),
                     Row(
                       children: [
-                        Icon(Icons.check_circle,
-                            size: 15, color: colorScheme.primary),
-                        const SizedBox(width: 8),
-                        Text('Serie ${r.numeroSet}',
-                            style: Theme.of(context).textTheme.bodyMedium),
-                      ],
-                    ),
-                    Text(
-                      '${_formatearPeso(r.peso)} kg × ${r.reps}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurface,
-                            fontWeight: FontWeight.w700,
+                        BotonStepper(
+                          icono: Icons.remove,
+                          tamano: 44,
+                          tooltip: 'Restar repeticiones',
+                          onPressed: sesionCompleta ? null : _decReps,
+                        ),
+                        SizedBox(
+                          width: 44,
+                          child: Text(
+                            '$_reps',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
+                        ),
+                        BotonStepper(
+                          icono: Icons.add,
+                          tamano: 44,
+                          tooltip: 'Sumar repeticiones',
+                          onPressed: sesionCompleta ? null : _incReps,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-          ],
-        ],
+              if (descansando) ...[
+                const SizedBox(height: 16),
+                Material(
+                  color: colorScheme.primary.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: _saltarDescanso,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: colorScheme.primary.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('DESCANSO',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(color: colorScheme.primary)),
+                              Text('Toca para saltar',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                          color: colorScheme.primary
+                                              .withValues(alpha: 0.7))),
+                            ],
+                          ),
+                          Text(
+                            _formatearTiempo(_segundosRestantes),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(color: colorScheme.primary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: accionBoton,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
+                  child: Text(textoBoton),
+                ),
+              ),
+              if (!sesionCompleta && widget.onAplazarEjercicio != null) ...[
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _aplazar,
+                    icon: const Icon(Icons.schedule, size: 18),
+                    label: const Text('No puedo ahora, saltar'),
+                  ),
+                ),
+              ],
+              if (_registrados.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text('SETS REGISTRADOS',
+                    style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 8),
+                for (final r in _registrados)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.check_circle,
+                                size: 15, color: colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text('Serie ${r.numeroSet}',
+                                style: Theme.of(context).textTheme.bodyMedium),
+                          ],
+                        ),
+                        Text(
+                          '${_formatearPeso(r.peso)} kg × ${r.reps}',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: colorScheme.onSurface,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+        if (_celebrando)
+          Positioned.fill(
+            child: _OverlayCelebracion(
+              esUltimoEjercicio: widget.esUltimoEjercicio,
+              nombreProximo: nombreProximo,
+              onSaltar: _avanzar,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Overlay que se muestra tras registrar la última serie de un ejercicio:
+/// celebra brevemente y deja que se toque para adelantar el avance
+/// automático (igual patrón que "toca para saltar" del descanso).
+class _OverlayCelebracion extends StatelessWidget {
+  final bool esUltimoEjercicio;
+  final String? nombreProximo;
+  final VoidCallback onSaltar;
+
+  const _OverlayCelebracion({
+    required this.esUltimoEjercicio,
+    required this.nombreProximo,
+    required this.onSaltar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onSaltar,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 220),
+        builder: (context, opacidad, child) =>
+            Opacity(opacity: opacidad, child: child),
+        child: Container(
+          color: colorScheme.surface.withValues(alpha: 0.97),
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 550),
+                curve: Curves.elasticOut,
+                builder: (context, valor, child) =>
+                    Transform.scale(scale: valor, child: child),
+                child: Icon(Icons.check_circle,
+                    size: 72, color: colorScheme.secondary),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                esUltimoEjercicio
+                    ? '¡Última serie hecha!'
+                    : '¡Ejercicio completado!',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              if (nombreProximo != null) ...[
+                const SizedBox(height: 8),
+                Text('Siguiente: $nombreProximo',
+                    style: Theme.of(context).textTheme.bodyMedium),
+              ],
+              const SizedBox(height: 20),
+              Text('Toca para continuar',
+                  style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+        ),
       ),
     );
   }

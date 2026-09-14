@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../domain/clasificador_ejercicio.dart';
 import '../../domain/importador_rutina.dart';
@@ -24,11 +25,66 @@ class _ImportarRutinaScreenState extends ConsumerState<ImportarRutinaScreen> {
   ResultadoImportacion? _resultado;
   List<DiaBorrador>? _diasParaRevisar;
   bool _analizando = false;
+  bool _escaneando = false;
 
   @override
   void dispose() {
     _controladorTexto.dispose();
     super.dispose();
+  }
+
+  /// Toma o elige una foto de la rutina, la pasa por OCR y agrega el texto
+  /// reconocido al campo de texto — el usuario lo revisa y corrige ahí
+  /// mismo (el OCR falla seguido con letra manuscrita) antes de "ANALIZAR".
+  Future<void> _escanear(ImageSource origen) async {
+    XFile? foto;
+    try {
+      foto = await ImagePicker().pickImage(source: origen, imageQuality: 85);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No se pudo abrir la cámara o la galería.'),
+      ));
+      return;
+    }
+    if (foto == null) return; // el usuario canceló
+
+    setState(() => _escaneando = true);
+    try {
+      final texto = await ref
+          .read(escanerRutinaServiceProvider)
+          .reconocerTexto(foto.path);
+      if (!mounted) return;
+
+      if (texto.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+            'No se reconoció texto en la foto. Prueba con más luz o '
+            'acercando más la cámara.',
+          ),
+        ));
+        return;
+      }
+
+      setState(() {
+        final actual = _controladorTexto.text;
+        _controladorTexto.text =
+            actual.trim().isEmpty ? texto : '$actual\n$texto';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'Texto reconocido: revísalo y corrige lo que haga falta antes '
+          'de analizar.',
+        ),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No se pudo leer el texto de la foto.'),
+      ));
+    } finally {
+      if (mounted) setState(() => _escaneando = false);
+    }
   }
 
   Future<void> _analizar() async {
@@ -93,10 +149,38 @@ class _ImportarRutinaScreenState extends ConsumerState<ImportarRutinaScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Pega tu rutina completa: un ejercicio por línea con series y '
-            'reps (p. ej. "Sentadilla 4x8-12"). Separa los días con un '
-            'encabezado como "Día 1: Pecho".',
+            'Escanea o pega tu rutina completa: un ejercicio por línea con '
+            'series y reps (p. ej. "Sentadilla 4x8-12"). Separa los días '
+            'con un encabezado como "Día 1: Pecho".',
           ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _escaneando
+                      ? null
+                      : () => _escanear(ImageSource.camera),
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Cámara'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _escaneando
+                      ? null
+                      : () => _escanear(ImageSource.gallery),
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Galería'),
+                ),
+              ),
+            ],
+          ),
+          if (_escaneando) ...[
+            const SizedBox(height: 8),
+            const LinearProgressIndicator(),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _controladorTexto,

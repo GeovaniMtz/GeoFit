@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/escaner_rutina_service.dart';
 import '../../core/notification_service.dart';
 import '../../data/database.dart';
 import '../../domain/progresion_service.dart';
@@ -21,6 +22,15 @@ final progresionServiceProvider = Provider<ProgresionService>((ref) {
 final notificationServiceProvider =
     Provider<NotificacionEntrenamientoService>((ref) {
   return NotificacionEntrenamientoService();
+});
+
+/// Reconocimiento de texto (OCR) para escanear una rutina con la cámara —
+/// una instancia viva durante toda la app, igual que
+/// [notificationServiceProvider].
+final escanerRutinaServiceProvider = Provider<EscanerRutinaService>((ref) {
+  final servicio = EscanerRutinaService();
+  ref.onDispose(servicio.cerrar);
+  return servicio;
 });
 
 // ---- Rutinas ---------------------------------------------------------------

@@ -142,9 +142,10 @@ void main() {
 
       expect(find.text('Próximo ejercicio: Sentadilla'), findsOneWidget);
 
+      // Al registrar la única serie del primer ejercicio, la app avanza
+      // sola al siguiente tras la celebración — sin necesidad de un
+      // segundo toque.
       await tester.tap(find.text('REGISTRAR SERIE'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('SIGUIENTE EJERCICIO'));
       await tester.pumpAndSettle();
 
       // En el último ejercicio ya no hay "próximo" que mostrar.
@@ -206,9 +207,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Ejercicio 1 de 3'), findsOneWidget);
 
+      // Al registrar la única serie del primer ejercicio, la app avanza
+      // sola al siguiente tras la celebración.
       await tester.tap(find.text('REGISTRAR SERIE'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('SIGUIENTE EJERCICIO'));
       await tester.pumpAndSettle();
       expect(find.text('Ejercicio 2 de 3'), findsOneWidget);
 
@@ -294,6 +295,99 @@ void main() {
       ));
       await tester.pumpAndSettle();
       expect(notificaciones.llamadas.last, 'cancelar');
+    },
+  );
+
+  testWidgets(
+    'aplazar el ejercicio actual lo manda al final de la cola de la sesión '
+    'y retoma sus sets ya registrados cuando le vuelve a tocar',
+    (tester) async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      final catalogo = await db.catalogoDeEjercicios();
+      final pressBancaId =
+          catalogo.firstWhere((e) => e.nombre == 'Press de banca').id;
+      final sentadillaId =
+          catalogo.firstWhere((e) => e.nombre == 'Sentadilla').id;
+      final pesoMuertoId =
+          catalogo.firstWhere((e) => e.nombre == 'Peso muerto').id;
+      final rutinaId = await db.crearRutina('Full body');
+      final diaId = await db.crearDia(rutinaId, 'Día 1', 0);
+      await db.agregarEjercicioARutina(RutinaEjerciciosCompanion.insert(
+        rutinaDiaId: diaId,
+        ejercicioId: pressBancaId,
+        orden: const Value(0),
+        seriesObjetivo: const Value(2),
+      ));
+      await db.agregarEjercicioARutina(RutinaEjerciciosCompanion.insert(
+        rutinaDiaId: diaId,
+        ejercicioId: sentadillaId,
+        orden: const Value(1),
+        seriesObjetivo: const Value(1),
+      ));
+      await db.agregarEjercicioARutina(RutinaEjerciciosCompanion.insert(
+        rutinaDiaId: diaId,
+        ejercicioId: pesoMuertoId,
+        orden: const Value(2),
+        seriesObjetivo: const Value(1),
+      ));
+
+      final container = ProviderContainer(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          notificationServiceProvider
+              .overrideWithValue(NotificacionEntrenamientoServiceFake()),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(home: EntrenarScreen(rutinaDiaId: diaId)),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.text('Ejercicio 1 de 3'), findsOneWidget);
+      expect(find.text('Press de banca'), findsOneWidget);
+
+      // Registra la primera de las dos series de Press de banca y luego
+      // decide que no puede seguir con él justo ahora (p. ej. la máquina
+      // está ocupada).
+      await tester.tap(find.text('REGISTRAR SERIE'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('No puedo ahora, saltar'));
+      await tester.pumpAndSettle();
+
+      // Sigue en la misma posición de la cola ("ejercicio 1"), pero ahora
+      // le toca Sentadilla — Press de banca pasó al final.
+      expect(find.text('Ejercicio 1 de 3'), findsOneWidget);
+      expect(find.text('Sentadilla'), findsOneWidget);
+      expect(find.text('Próximo ejercicio: Peso muerto'), findsOneWidget);
+
+      // Completa Sentadilla y Peso muerto con normalidad.
+      await tester.tap(find.text('REGISTRAR SERIE'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ejercicio 2 de 3'), findsOneWidget);
+      expect(find.text('Peso muerto'), findsOneWidget);
+
+      await tester.tap(find.text('REGISTRAR SERIE'));
+      await tester.pumpAndSettle();
+
+      // De vuelta a Press de banca, ahora al final de la cola, retomando en
+      // la serie 2 — no se perdió la que ya había registrado antes de
+      // aplazarlo.
+      expect(find.text('Ejercicio 3 de 3'), findsOneWidget);
+      expect(find.text('Press de banca'), findsOneWidget);
+      expect(find.text('SERIE 2/2'), findsOneWidget);
+      // Es el último de la cola: ya no hay a quién saltarle.
+      expect(find.text('No puedo ahora, saltar'), findsNothing);
+
+      await tester.tap(find.text('REGISTRAR SERIE'));
+      await tester.pumpAndSettle();
+
+      // Última serie del último ejercicio de la cola: rutina completada.
+      expect(find.text('¡RUTINA COMPLETADA!'), findsOneWidget);
     },
   );
 }

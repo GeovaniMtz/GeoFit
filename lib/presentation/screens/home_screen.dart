@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -204,7 +205,10 @@ class _TarjetaRutina extends ConsumerWidget {
                         ),
                         const SizedBox(width: 12),
                         FilledButton(
-                          onPressed: () => context.push('/entrenar/${dia.id}'),
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            context.push('/entrenar/${dia.id}');
+                          },
                           style: FilledButton.styleFrom(
                             backgroundColor:
                                 colorScheme.primary.withValues(alpha: 0.14),
