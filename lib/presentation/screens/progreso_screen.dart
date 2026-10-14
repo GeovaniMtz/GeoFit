@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
+import '../widgets/comunes.dart';
 import '../widgets/estado_error.dart';
 
 class ProgresoScreen extends ConsumerStatefulWidget {
@@ -18,6 +20,7 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
   int? _ejercicioSeleccionado;
 
   Future<void> _registrarPesoCorporal(BuildContext context) async {
+    final unidad = ref.read(unidadPesoProvider);
     final controlador = TextEditingController();
     final peso = await showDialog<double>(
       context: context,
@@ -27,7 +30,7 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
           controller: controlador,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'kg'),
+          decoration: InputDecoration(labelText: unidad.name),
         ),
         actions: [
           TextButton(
@@ -46,7 +49,8 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
     );
 
     if (peso == null) return;
-    await ref.read(databaseProvider).registrarPesoCorporal(peso);
+    // Se captura en la unidad elegida pero siempre se guarda en kg.
+    await ref.read(databaseProvider).registrarPesoCorporal(unidad.aKg(peso));
     ref.invalidate(historialPesoCorporalProvider);
   }
 
@@ -63,9 +67,11 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
         ),
         data: (ejercicios) {
           if (ejercicios.isEmpty) {
-            return const Center(
-              child: Text('Agrega ejercicios a una rutina para ver su '
-                  'progreso aquí.'),
+            return const EstadoVacio(
+              icono: Icons.show_chart_rounded,
+              titulo: 'Aún no hay progreso que mostrar',
+              detalle: 'Agrega ejercicios a una rutina y entrena para ver '
+                  'tu progreso aquí.',
             );
           }
           // La lista puede reducirse en caliente (se archivó una rutina, se
@@ -77,8 +83,10 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
             children: [
+              const EncabezadoSeccion('Fuerza'),
               DropdownButtonFormField<int>(
                 initialValue: _ejercicioSeleccionado,
                 decoration: const InputDecoration(labelText: 'Ejercicio'),
@@ -93,30 +101,25 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
                 onChanged: (valor) =>
                     setState(() => _ejercicioSeleccionado = valor),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: GeoLiftSpacing.md),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(GeoLiftSpacing.page),
                   child: _GraficaE1rm(ejercicioId: _ejercicioSeleccionado!),
                 ),
               ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('PESO CORPORAL',
-                      style: Theme.of(context).textTheme.labelSmall),
-                  TextButton.icon(
-                    onPressed: () => _registrarPesoCorporal(context),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('REGISTRAR'),
-                  ),
-                ],
+              const SizedBox(height: GeoLiftSpacing.xxl),
+              EncabezadoSeccion(
+                'Peso corporal',
+                accion: IconButton(
+                  onPressed: () => _registrarPesoCorporal(context),
+                  tooltip: 'Registrar peso corporal',
+                  icon: const Icon(Icons.add_rounded),
+                ),
               ),
-              const SizedBox(height: 4),
               const Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(GeoLiftSpacing.page),
                   child: _GraficaPesoCorporal(),
                 ),
               ),
@@ -136,6 +139,7 @@ class _GraficaE1rm extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historial = ref.watch(historialPorEjercicioProvider(ejercicioId));
     final servicio = ref.watch(progresionServiceProvider);
+    final unidad = ref.watch(unidadPesoProvider);
 
     return historial.when(
       loading: () => const SizedBox(
@@ -154,15 +158,16 @@ class _GraficaE1rm extends ConsumerWidget {
         final ordenados = registros.reversed.toList();
         final mejorPr = registros
             .where((r) => r.registro.esPr)
-            .map((r) => servicio.e1rm(r.registro.peso, r.registro.reps))
+            .map((r) =>
+                unidad.desdeKg(servicio.e1rm(r.registro.peso, r.registro.reps)))
             .fold<double?>(null, (max, v) => max == null || v > max ? v : max);
 
         final puntos = <FlSpot>[
           for (var i = 0; i < ordenados.length; i++)
             FlSpot(
                 i.toDouble(),
-                servicio.e1rm(
-                    ordenados[i].registro.peso, ordenados[i].registro.reps)),
+                unidad.desdeKg(servicio.e1rm(
+                    ordenados[i].registro.peso, ordenados[i].registro.reps))),
         ];
 
         final gridColor = Theme.of(context).colorScheme.outlineVariant;
@@ -179,7 +184,7 @@ class _GraficaE1rm extends ConsumerWidget {
                   children: [
                     const TextSpan(text: 'Mejor marca: '),
                     TextSpan(
-                      text: '${mejorPr.toStringAsFixed(1)} kg e1RM',
+                      text: '${mejorPr.toStringAsFixed(1)} ${unidad.name} e1RM',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w800,
@@ -261,6 +266,7 @@ class _GraficaPesoCorporal extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historial = ref.watch(historialPesoCorporalProvider);
+    final unidad = ref.watch(unidadPesoProvider);
 
     return historial.when(
       loading: () => const SizedBox(
@@ -274,7 +280,7 @@ class _GraficaPesoCorporal extends ConsumerWidget {
         }
         final puntos = <FlSpot>[
           for (var i = 0; i < registros.length; i++)
-            FlSpot(i.toDouble(), registros[i].peso),
+            FlSpot(i.toDouble(), unidad.desdeKg(registros[i].peso)),
         ];
         return SizedBox(
           height: 180,

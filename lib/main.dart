@@ -18,6 +18,9 @@ class GeoLiftApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tema = ref.watch(temaControllerProvider);
+    // Se carga la unidad de peso desde el arranque (no hasta la primera
+    // pantalla que la use), para que Entrenar ya la tenga lista al abrir.
+    ref.watch(unidadPesoProvider);
     return MaterialApp.router(
       title: 'GeoLift',
       debugShowCheckedModeBanner: false,

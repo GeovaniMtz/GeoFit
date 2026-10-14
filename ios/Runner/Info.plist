@@ -26,6 +26,10 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>GeoLift usa la cámara para escanear una rutina escrita y convertirla en ejercicios.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>GeoLift necesita acceso a tus fotos para escanear una rutina desde una imagen guardada.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>

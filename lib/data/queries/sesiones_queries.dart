@@ -8,8 +8,81 @@ extension SesionesQueries on AppDatabase {
   Future<int> iniciarSesion(int rutinaDiaId) => into(sesionesEntrenamiento)
       .insert(SesionesEntrenamientoCompanion.insert(rutinaDiaId: rutinaDiaId));
 
+  /// La sesión de hoy para este día de rutina, si ya se empezó una — para
+  /// retomarla en vez de crear una nueva cada vez que se reabre "Entrenar"
+  /// (p. ej. al salir con el botón de regresar y volver a entrar).
+  Future<SesionesEntrenamientoData?> sesionDeHoy(int rutinaDiaId) {
+    final ahora = DateTime.now();
+    final inicioDia = DateTime(ahora.year, ahora.month, ahora.day);
+    final finDia = inicioDia.add(const Duration(days: 1));
+    final query = select(sesionesEntrenamiento)
+      ..where((s) =>
+          s.rutinaDiaId.equals(rutinaDiaId) &
+          s.fecha.isBiggerOrEqualValue(inicioDia) &
+          s.fecha.isSmallerThanValue(finDia))
+      ..orderBy([(s) => OrderingTerm.desc(s.fecha)])
+      ..limit(1);
+    return query.getSingleOrNull();
+  }
+
+  /// Retoma la sesión de hoy de [rutinaDiaId] si ya existe una; si no, crea
+  /// una nueva. Así salir de "Entrenar" y volver a entrar el mismo día no
+  /// reinicia el progreso desde el primer ejercicio.
+  Future<int> iniciarOResumirSesion(int rutinaDiaId) async {
+    final existente = await sesionDeHoy(rutinaDiaId);
+    if (existente != null) return existente.id;
+    return iniciarSesion(rutinaDiaId);
+  }
+
   Future<int> registrarSet(RegistrosSetCompanion datos) =>
       into(registrosSet).insert(datos);
+
+  Future<SesionesEntrenamientoData> obtenerSesion(int sesionId) =>
+      (select(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+          .getSingle();
+
+  /// Guarda como duración de la sesión el tiempo transcurrido desde que se
+  /// empezó hasta [hasta] (por defecto, ahora). Se llama tras cada serie, así
+  /// que una sesión que se deja a medias conserva la duración hasta su
+  /// última serie registrada en vez de quedarse sin dato.
+  Future<void> actualizarDuracionSesion(int sesionId, {DateTime? hasta}) async {
+    final sesion = await obtenerSesion(sesionId);
+    final fin = hasta ?? DateTime.now();
+    final segundos = fin.difference(sesion.fecha).inSeconds;
+    await (update(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+        .write(SesionesEntrenamientoCompanion(
+      duracionSeg: Value(segundos < 0 ? 0 : segundos),
+    ));
+  }
+
+  /// Guarda (o borra, si viene vacía) la nota libre de la sesión — p. ej.
+  /// "me dolió el hombro en el press".
+  Future<void> guardarNotasSesion(int sesionId, String? notas) {
+    final limpia = notas?.trim();
+    return (update(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+        .write(SesionesEntrenamientoCompanion(
+      notas: Value(limpia == null || limpia.isEmpty ? null : limpia),
+    ));
+  }
+
+  /// Todos los sets ya registrados en [sesionId], de cualquier ejercicio —
+  /// para saber en qué ejercicio y serie retomar al reabrir la sesión.
+  Future<List<RegistrosSetData>> setsDeSesion(int sesionId) =>
+      (select(registrosSet)..where((r) => r.sesionId.equals(sesionId))).get();
+
+  /// Los sets ya registrados en [sesionId] para un ejercicio puntual, en
+  /// orden — para retomar el conteo de series y la lista de "sets
+  /// registrados" si se vuelve a entrar a mitad de ese ejercicio.
+  Future<List<RegistrosSetData>> setsDeEjercicioEnSesion(
+    int sesionId,
+    int rutinaEjercicioId,
+  ) =>
+      (select(registrosSet)
+            ..where((r) =>
+                r.sesionId.equals(sesionId) &
+                r.rutinaEjercicioId.equals(rutinaEjercicioId))
+            ..orderBy([(r) => OrderingTerm.asc(r.numeroSet)]))
+          .get();
 
   /// Historial de sets de un ejercicio del catálogo (p.ej. "Press de banca"),
   /// sin importar en qué rutina o día se hizo — así el progreso y los PRs se

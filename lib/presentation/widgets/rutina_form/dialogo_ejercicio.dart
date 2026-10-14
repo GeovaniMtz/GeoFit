@@ -139,6 +139,7 @@ void mostrarFormularioDeEjercicio(
                 repsMax: repsMax < repsMin ? repsMin : repsMax,
                 descansoSeg: int.tryParse(controladorDescanso.text) ??
                     ClasificadorEjercicio.descansoSugeridoSeg(nombre),
+                nombreEjercicioOriginal: existente?.nombreEjercicioOriginal,
               ));
               Navigator.pop(context);
             },

@@ -47,7 +47,9 @@ class ClasificadorEjercicio {
     'peso libre',
   ];
 
-  static String _normalizar(String texto) {
+  /// Pública porque también la reutiliza [ImportadorRutina] para
+  /// comparar nombres pegados contra el catálogo existente.
+  static String normalizar(String texto) {
     var resultado = texto.toLowerCase();
     const acentos = {
       'á': 'a',
@@ -67,7 +69,7 @@ class ClasificadorEjercicio {
   /// "sentadilla en máquina" debe clasificarse como máquina aunque
   /// "sentadilla" también aparezca en la lista de peso libre.
   static TipoEjercicio clasificar(String nombreEjercicio) {
-    final nombre = _normalizar(nombreEjercicio);
+    final nombre = normalizar(nombreEjercicio);
     if (nombre.trim().isEmpty) return TipoEjercicio.indeterminado;
     if (_palabrasMaquina.any(nombre.contains)) return TipoEjercicio.maquina;
     if (_palabrasPesoLibre.any(nombre.contains)) {
@@ -85,5 +87,50 @@ class ClasificadorEjercicio {
       case TipoEjercicio.indeterminado:
         return descansoPorDefectoSeg;
     }
+  }
+
+  static const _gruposTrenInferior = [
+    'pierna',
+    'gluteo',
+    'cuadricep',
+    'femoral',
+    'isquio',
+    'gemelo',
+    'pantorrilla',
+    'aductor',
+    'abductor',
+  ];
+
+  static const _palabrasTrenInferior = [
+    'sentadilla',
+    'squat',
+    'peso muerto',
+    'deadlift',
+    'prensa',
+    'zancada',
+    'desplante',
+    'bulgara',
+    'hip thrust',
+    'puente de gluteo',
+    'curl femoral',
+    'extension de cuadricep',
+    'gemelo',
+    'pantorrilla',
+    'aductor',
+    'abductor',
+    'hack',
+    'step up',
+  ];
+
+  /// ¿El ejercicio es de tren inferior? Decide el tamaño del salto de peso
+  /// al progresar (las piernas toleran incrementos más grandes). Primero
+  /// mira el grupo muscular del catálogo y, si no ayuda (p. ej. "Sin
+  /// clasificar" en ejercicios creados al vuelo), el nombre.
+  static bool esTrenInferior(String nombreEjercicio,
+      {String grupoMuscular = ''}) {
+    final grupo = normalizar(grupoMuscular);
+    if (_gruposTrenInferior.any(grupo.contains)) return true;
+    final nombre = normalizar(nombreEjercicio);
+    return _palabrasTrenInferior.any(nombre.contains);
   }
 }

@@ -2,7 +2,9 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../data/database.dart';
+import '../../domain/clasificador_ejercicio.dart';
 import '../providers/providers.dart';
 import '../widgets/rutina_form/borrador.dart';
 import '../widgets/rutina_form/tarjeta_dia.dart';
@@ -12,7 +14,8 @@ import '../widgets/rutina_form/tarjeta_dia.dart';
 /// "Guardar rutina".
 class RutinaFormScreen extends ConsumerStatefulWidget {
   final int? rutinaId;
-  const RutinaFormScreen({super.key, this.rutinaId});
+  final List<DiaBorrador>? diasIniciales;
+  const RutinaFormScreen({super.key, this.rutinaId, this.diasIniciales});
 
   @override
   ConsumerState<RutinaFormScreen> createState() => _RutinaFormScreenState();
@@ -54,6 +57,22 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
       // build, así que ya se reflejará en él.
       _cargando = true;
       _cargarRutinaExistente(rutinaId);
+    } else if (widget.diasIniciales != null &&
+        widget.diasIniciales!.isNotEmpty) {
+      // Viene de "Importar rutina": se reemplaza el día en blanco por
+      // defecto con los días ya parseados.
+      for (final dia in _dias) {
+        dia.controladorNombre.dispose();
+      }
+      _dias
+        ..clear()
+        ..addAll(widget.diasIniciales!);
+      for (final dia in _dias) {
+        dia.controladorNombre.addListener(_marcarSucio);
+      }
+      // Es contenido real sin guardar: se protege con el mismo diálogo de
+      // "¿Descartar cambios?" que cualquier edición manual.
+      _sucio = true;
     }
   }
 
@@ -79,6 +98,7 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
           repsMin: e.rutinaEjercicio.repsMin,
           repsMax: e.rutinaEjercicio.repsMax,
           descansoSeg: e.rutinaEjercicio.descansoSeg,
+          nombreEjercicioOriginal: e.nombreEjercicio,
         ));
         diaBorrador.idsOriginalesDeEjercicios.add(e.rutinaEjercicio.id);
       }
@@ -117,6 +137,33 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
         _dias.add(_nuevoDiaBorrador());
         _sucio = true;
       });
+
+  void _duplicarDia(int indice) {
+    setState(() {
+      final original = _dias[indice];
+      final copia = _nuevoDiaBorrador();
+      final nombreOriginal = original.controladorNombre.text.trim();
+      copia.controladorNombre.text =
+          '${nombreOriginal.isEmpty ? 'Día ${indice + 1}' : nombreOriginal} (copia)';
+      // Se copian los ejercicios (mismo ejercicioId de catálogo si ya
+      // apuntaban a uno) pero sin rutinaEjercicioId: es un día nuevo, no
+      // una edición del original, así que al guardar debe crear filas
+      // propias en vez de tocar las del día copiado.
+      for (final ejercicio in original.ejercicios) {
+        copia.ejercicios.add(EjercicioBorrador(
+          ejercicioId: ejercicio.ejercicioId,
+          nombreEjercicio: ejercicio.nombreEjercicio,
+          seriesObjetivo: ejercicio.seriesObjetivo,
+          repsMin: ejercicio.repsMin,
+          repsMax: ejercicio.repsMax,
+          descansoSeg: ejercicio.descansoSeg,
+          nombreEjercicioOriginal: ejercicio.nombreEjercicioOriginal,
+        ));
+      }
+      _dias.insert(indice + 1, copia);
+      _sucio = true;
+    });
+  }
 
   void _agregarEjercicio(DiaBorrador dia, EjercicioBorrador ejercicio) {
     setState(() {
@@ -172,6 +219,22 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
         for (var j = 0; j < dia.ejercicios.length; j++) {
           final ej = dia.ejercicios[j];
           var ejercicioId = ej.ejercicioId;
+
+          // Si el usuario cambió el nombre respecto al que tenía cuando se
+          // cargó el borrador, se corrige también en el catálogo. Antes este
+          // cambio se descartaba en silencio (actualizarEjercicioDeRutina no
+          // tocaba el nombre), así que la app seguía mostrando y registrando
+          // todo bajo el nombre viejo pese a que el usuario ya lo había
+          // corregido. Se renombra en vez de enlazar a otro ejercicio para
+          // no perder el historial ya registrado bajo este mismo id.
+          final nombreOriginal = ej.nombreEjercicioOriginal;
+          if (ejercicioId != null &&
+              nombreOriginal != null &&
+              ClasificadorEjercicio.normalizar(ej.nombreEjercicio).trim() !=
+                  ClasificadorEjercicio.normalizar(nombreOriginal).trim()) {
+            await db.renombrarEjercicio(ejercicioId, ej.nombreEjercicio);
+          }
+
           ejercicioId ??= await db.crearEjercicio(EjerciciosCompanion.insert(
             nombre: ej.nombreEjercicio,
             grupoMuscular: 'Sin clasificar',
@@ -181,6 +244,7 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
           if (ej.rutinaEjercicioId != null) {
             await db.actualizarEjercicioDeRutina(
               ej.rutinaEjercicioId!,
+              ejercicioId: ejercicioId,
               orden: j,
               seriesObjetivo: ej.seriesObjetivo,
               repsMin: ej.repsMin,
@@ -309,11 +373,37 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
         appBar: AppBar(
           title:
               Text(widget.rutinaId == null ? 'Nueva rutina' : 'Editar rutina'),
+          actions: [
+            if (widget.rutinaId != null)
+              Padding(
+                padding: const EdgeInsets.only(right: GeoLiftSpacing.md),
+                child: IconButton(
+                  onPressed: (_guardando || _eliminando || _cargando)
+                      ? null
+                      : _confirmarEliminar,
+                  tooltip: 'Eliminar rutina',
+                  style: IconButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  icon: _eliminando
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline_rounded),
+                ),
+              ),
+          ],
         ),
         body: _cargando
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                    GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xxl),
                 children: [
                   TextField(
                     controller: _controladorNombreRutina,
@@ -322,7 +412,7 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                       hintText: 'p. ej. Push / Pull / Legs',
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: GeoLiftSpacing.xl),
                   for (var i = 0; i < _dias.length; i++)
                     TarjetaDia(
                       indice: i,
@@ -335,13 +425,14 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                         _dias[i].ejercicios.removeAt(idx);
                         _sucio = true;
                       }),
+                      onDuplicarDia: () => _duplicarDia(i),
                     ),
                   OutlinedButton.icon(
                     onPressed: _agregarDia,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: const Text('AGREGAR DÍA'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: GeoLiftSpacing.xl),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
@@ -358,33 +449,6 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                           : const Text('GUARDAR RUTINA'),
                     ),
                   ),
-                  if (widget.rutinaId != null) ...[
-                    const SizedBox(height: 32),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton.icon(
-                        onPressed: (_guardando || _eliminando)
-                            ? null
-                            : _confirmarEliminar,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
-                        ),
-                        icon: _eliminando
-                            ? SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              )
-                            : const Icon(Icons.delete_outline),
-                        label: const Text('ELIMINAR RUTINA'),
-                      ),
-                    ),
-                  ],
                 ],
               ),
       ),

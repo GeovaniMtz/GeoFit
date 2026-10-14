@@ -37,6 +37,7 @@ extension RutinaEjerciciosQueries on AppDatabase {
 
   Future<void> actualizarEjercicioDeRutina(
     int id, {
+    required int ejercicioId,
     required int orden,
     required int seriesObjetivo,
     required int repsMin,
@@ -45,6 +46,7 @@ extension RutinaEjerciciosQueries on AppDatabase {
   }) =>
       (update(rutinaEjercicios)..where((e) => e.id.equals(id)))
           .write(RutinaEjerciciosCompanion(
+        ejercicioId: Value(ejercicioId),
         orden: Value(orden),
         seriesObjetivo: Value(seriesObjetivo),
         repsMin: Value(repsMin),

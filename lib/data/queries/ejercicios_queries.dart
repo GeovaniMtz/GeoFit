@@ -35,4 +35,11 @@ extension EjerciciosQueries on AppDatabase {
 
   Future<int> crearEjercicio(EjerciciosCompanion datos) =>
       into(ejercicios).insert(datos);
+
+  /// Corrige el nombre de un ejercicio del catálogo, sin tocar su id — así
+  /// el historial ya registrado con él (que se referencia por id, no por
+  /// nombre) sigue intacto y pasa a mostrarse con el nombre corregido.
+  Future<void> renombrarEjercicio(int id, String nombre) =>
+      (update(ejercicios)..where((e) => e.id.equals(id)))
+          .write(EjerciciosCompanion(nombre: Value(nombre)));
 }
