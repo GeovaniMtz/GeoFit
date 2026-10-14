@@ -88,4 +88,49 @@ class ClasificadorEjercicio {
         return descansoPorDefectoSeg;
     }
   }
+
+  static const _gruposTrenInferior = [
+    'pierna',
+    'gluteo',
+    'cuadricep',
+    'femoral',
+    'isquio',
+    'gemelo',
+    'pantorrilla',
+    'aductor',
+    'abductor',
+  ];
+
+  static const _palabrasTrenInferior = [
+    'sentadilla',
+    'squat',
+    'peso muerto',
+    'deadlift',
+    'prensa',
+    'zancada',
+    'desplante',
+    'bulgara',
+    'hip thrust',
+    'puente de gluteo',
+    'curl femoral',
+    'extension de cuadricep',
+    'gemelo',
+    'pantorrilla',
+    'aductor',
+    'abductor',
+    'hack',
+    'step up',
+  ];
+
+  /// ¿El ejercicio es de tren inferior? Decide el tamaño del salto de peso
+  /// al progresar (las piernas toleran incrementos más grandes). Primero
+  /// mira el grupo muscular del catálogo y, si no ayuda (p. ej. "Sin
+  /// clasificar" en ejercicios creados al vuelo), el nombre.
+  static bool esTrenInferior(String nombreEjercicio,
+      {String grupoMuscular = ''}) {
+    final grupo = normalizar(grupoMuscular);
+    if (_gruposTrenInferior.any(grupo.contains)) return true;
+    final nombre = normalizar(nombreEjercicio);
+    return _palabrasTrenInferior.any(nombre.contains);
+  }
 }

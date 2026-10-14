@@ -101,4 +101,78 @@ void main() {
       );
     });
   });
+
+  group('ProgresionService.evaluar con RPE', () {
+    SerieRealizada conRpe(int reps, double? rpe, {double peso = 60}) =>
+        SerieRealizada(
+          peso: peso,
+          reps: reps,
+          repsMinObjetivo: 8,
+          repsMaxObjetivo: 12,
+          rpe: rpe,
+        );
+
+    test('al tope con reps de sobra sube desde la primera sesión', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(12, 7), conRpe(12, 8), conRpe(12, 8)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.subirPeso);
+      expect(sugerencia.pesoSugeridoKg, 62.5);
+    });
+
+    test('si falta el RPE en alguna serie no se adelanta la subida', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(12, 7), conRpe(12, null)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.ninguna);
+    });
+
+    test('al tope pero al límite pide mantener el peso', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(12, 8), conRpe(12, 10)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.mantener);
+      expect(sugerencia.pesoSugeridoKg, 60);
+    });
+
+    test('mantener tiene prioridad sobre la regla de 2 sesiones al tope', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(12, 10), conRpe(12, 10)],
+        [conRpe(12, null), conRpe(12, null)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.mantener);
+    });
+
+    test('el peso base es el más alto de la última sesión', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(12, 7, peso: 60), conRpe(12, 7, peso: 65)],
+      ], esTrenInferior: true);
+
+      expect(sugerencia.pesoBaseKg, 65);
+      expect(sugerencia.pesoSugeridoKg, 70);
+    });
+
+    test('deload sugiere el 90% del último peso', () {
+      final sugerencia = servicio.evaluar([
+        [conRpe(5, 10, peso: 100)],
+        [conRpe(6, 10, peso: 100)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.deload);
+      expect(sugerencia.pesoSugeridoKg, 90);
+    });
+
+    test('ignora sesiones vacías al buscar la más reciente', () {
+      final sugerencia = servicio.evaluar([
+        [],
+        [conRpe(12, 6), conRpe(12, 6)],
+      ], esTrenInferior: false);
+
+      expect(sugerencia.tipo, TipoSugerencia.subirPeso);
+    });
+  });
 }

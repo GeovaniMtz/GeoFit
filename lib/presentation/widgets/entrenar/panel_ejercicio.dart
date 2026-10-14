@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme.dart';
 import '../../../data/database.dart';
+import '../../../domain/clasificador_ejercicio.dart';
+import '../../../domain/progresion_service.dart';
 import '../../providers/providers.dart';
 import '../comunes.dart';
 import 'boton_stepper.dart';
@@ -69,6 +71,11 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
   AnimationController? _controladorCelebracion;
   bool _celebrando = false;
   bool _avanzado = false;
+
+  // Sugerencia de progresión para hoy (subir, mantener o descargar),
+  // calculada una sola vez con las sesiones ANTERIORES a esta.
+  Sugerencia? _sugerencia;
+  bool _sugerenciaCalculada = false;
 
   bool _historialCapturado = false;
   List<RegistroConFecha> _historialPrevio = const [];
@@ -170,6 +177,47 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
       _peso =
           unidad.aKg(unidad.desdeKgRedondeado(historial.first.registro.peso));
       _reps = historial.first.registro.reps;
+    }
+  }
+
+  /// Agrupa el historial por sesión (más reciente primero), sin la sesión
+  /// en curso, y le pide al motor de progresión qué hacer hoy. Si hay
+  /// sugerencia y todavía no se registró ninguna serie de este ejercicio,
+  /// precarga el peso sugerido. Se llama desde build() en cuanto están el
+  /// historial y el catálogo — asigna sin setState porque ocurre antes de
+  /// que se pinten los valores, igual que [_capturarHistorial].
+  void _calcularSugerencia(Ejercicio? ejercicio) {
+    if (_sugerenciaCalculada || !_historialCapturado || ejercicio == null) {
+      return;
+    }
+    _sugerenciaCalculada = true;
+
+    final porSesion = <int, List<SerieRealizada>>{};
+    for (final r in _historialPrevio) {
+      final registro = r.registro;
+      if (registro.sesionId == widget.sesionId) continue;
+      porSesion.putIfAbsent(registro.sesionId, () => []).add(SerieRealizada(
+            peso: registro.peso,
+            reps: registro.reps,
+            repsMinObjetivo: widget.objetivo.repsMin,
+            repsMaxObjetivo: widget.objetivo.repsMax,
+            rpe: registro.rpe,
+          ));
+    }
+
+    final sugerencia = ref.read(progresionServiceProvider).evaluar(
+          porSesion.values.toList(),
+          esTrenInferior: ClasificadorEjercicio.esTrenInferior(
+            ejercicio.nombre,
+            grupoMuscular: ejercicio.grupoMuscular,
+          ),
+        );
+    if (sugerencia.tipo == TipoSugerencia.ninguna) return;
+    _sugerencia = sugerencia;
+
+    final pesoSugerido = sugerencia.pesoSugeridoKg;
+    if (pesoSugerido != null && _registrados.isEmpty) {
+      _peso = ref.read(unidadPesoProvider).redondearAPasoKg(pesoSugerido);
     }
   }
 
@@ -342,6 +390,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     ref
         .watch(historialPorEjercicioProvider(widget.objetivo.ejercicioId))
         .whenData(_capturarHistorial);
+    _calcularSugerencia(ejercicioAsync.valueOrNull?.firstOrNull);
 
     final unidad = ref.watch(unidadPesoProvider);
     final colorScheme = Theme.of(context).colorScheme;
@@ -428,6 +477,14 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                   peso: _formatearPeso(_historialPrevio.first.registro.peso),
                   unidad: unidad.name,
                   reps: _historialPrevio.first.registro.reps,
+                ),
+              ],
+              if (_sugerencia != null) ...[
+                const SizedBox(height: GeoLiftSpacing.md),
+                _TarjetaSugerencia(
+                  sugerencia: _sugerencia!,
+                  pesoTexto: unidad.formatearConUnidad(
+                      unidad.redondearAPasoKg(_sugerencia!.pesoSugeridoKg!)),
                 ),
               ],
               const SizedBox(height: GeoLiftSpacing.xl),
@@ -880,6 +937,71 @@ class _SelectorRpe extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Qué hacer hoy con este ejercicio según las sesiones anteriores: subir
+/// peso, mantenerlo o descargar. El peso ya viene precargado en los
+/// controles; la tarjeta explica por qué.
+class _TarjetaSugerencia extends StatelessWidget {
+  final Sugerencia sugerencia;
+  final String pesoTexto;
+  const _TarjetaSugerencia({required this.sugerencia, required this.pesoTexto});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final (IconData icono, Color color, String titulo) =
+        switch (sugerencia.tipo) {
+      TipoSugerencia.subirPeso => (
+          Icons.trending_up_rounded,
+          colorScheme.secondary,
+          'Hoy sube a $pesoTexto',
+        ),
+      TipoSugerencia.mantener => (
+          Icons.horizontal_rule_rounded,
+          colorScheme.primary,
+          'Hoy mantén $pesoTexto',
+        ),
+      TipoSugerencia.deload || TipoSugerencia.ninguna => (
+          Icons.trending_down_rounded,
+          colorScheme.error,
+          'Hoy descarga a $pesoTexto',
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(GeoLiftSpacing.lg),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(GeoLiftRadius.md),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icono, color: color),
+          const SizedBox(width: GeoLiftSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  titulo,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(color: color),
+                ),
+                const SizedBox(height: GeoLiftSpacing.xs),
+                Text(sugerencia.motivo,
+                    style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

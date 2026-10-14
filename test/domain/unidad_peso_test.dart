@@ -42,5 +42,14 @@ void main() {
       expect(
           UnidadPeso.lb.formatearConUnidad(UnidadPeso.lb.aKg(225)), '225 lb');
     });
+
+    test('redondearAPasoKg deja un peso cargable en la barra', () {
+      expect(UnidadPeso.kg.redondearAPasoKg(56.25), 57.5);
+      expect(UnidadPeso.kg.redondearAPasoKg(55.9), 55);
+      // 135 lb + 2.5 kg ≈ 140.5 lb → 140 lb
+      final kg = UnidadPeso.lb.aKg(135) + 2.5;
+      expect(UnidadPeso.lb.desdeKg(UnidadPeso.lb.redondearAPasoKg(kg)),
+          closeTo(140, 1e-9));
+    });
   });
 }

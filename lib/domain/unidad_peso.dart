@@ -38,6 +38,12 @@ enum UnidadPeso {
   /// arranque en un número que se pueda cargar en la barra.
   double desdeKgRedondeado(double kg) => (desdeKg(kg) * 2).round() / 2;
 
+  /// Kilos → kilos equivalentes al múltiplo de [paso] más cercano en esta
+  /// unidad (2.5 kg o 5 lb): un peso sugerido que se pueda cargar en la
+  /// barra, p. ej. el 90% de 62.5 kg (56.25) → 57.5 kg.
+  double redondearAPasoKg(double kg) =>
+      aKg((desdeKg(kg) / paso).round() * paso);
+
   /// Kilos guardados → texto en esta unidad, sin decimales cuando el valor
   /// es entero ("60", "132.5").
   String formatear(double kg, {int decimales = 1}) {
