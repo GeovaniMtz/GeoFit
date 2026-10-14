@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/escaner_rutina_service.dart';
 import '../../core/notification_service.dart';
+import '../../core/respaldo_automatico.dart';
 import '../../core/respaldo_service.dart';
 import '../../data/database.dart';
 import '../../domain/progresion_service.dart';
@@ -39,6 +40,21 @@ final escanerRutinaServiceProvider = Provider<EscanerRutinaService>((ref) {
 
 final respaldoServiceProvider = Provider<RespaldoService>((ref) {
   return RespaldoService();
+});
+
+/// Respaldo semanal automático (ver [RespaldoAutomatico]); la carpeta se
+/// resuelve una sola vez.
+final respaldoAutomaticoProvider =
+    FutureProvider<RespaldoAutomatico>((ref) async {
+  return RespaldoAutomatico(await carpetaRespaldoAutomatico());
+});
+
+/// Fecha del último respaldo automático (null si nunca se ha hecho) y la
+/// carpeta donde se guardan, para mostrarlo en Ajustes.
+final estadoRespaldoAutomaticoProvider =
+    FutureProvider<({DateTime? ultimo, String carpeta})>((ref) async {
+  final auto = await ref.watch(respaldoAutomaticoProvider.future);
+  return (ultimo: await auto.ultimo(), carpeta: auto.carpeta.path);
 });
 
 /// Vuelve a leer de la base todo lo que las pantallas tienen en caché. Se

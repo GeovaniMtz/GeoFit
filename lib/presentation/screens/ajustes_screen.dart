@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../core/theme.dart';
 import '../../data/database.dart';
@@ -231,6 +232,7 @@ class _TarjetaRespaldoState extends ConsumerState<_TarjetaRespaldo> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
+          const _EstadoRespaldoAutomatico(),
           if (_ocupado)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: GeoLiftSpacing.page),
@@ -257,5 +259,56 @@ class _TarjetaRespaldoState extends ConsumerState<_TarjetaRespaldo> {
         ],
       ),
     );
+  }
+}
+
+/// "Automático cada semana · último hace 3 días · en Documentos/GeoLift".
+class _EstadoRespaldoAutomatico extends ConsumerWidget {
+  const _EstadoRespaldoAutomatico();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final estado = ref.watch(estadoRespaldoAutomaticoProvider);
+    final datos = estado.valueOrNull;
+    if (datos == null) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final partes = p.split(datos.carpeta);
+    final enDocumentos = partes.length >= 2 &&
+        partes[partes.length - 2] == 'Documents' &&
+        partes.last == 'GeoLift';
+    final cuando = _haceCuanto(datos.ultimo);
+    final donde = enDocumentos
+        ? 'en Documentos/GeoLift'
+        : 'en la carpeta de la app (se borra si la desinstalas)';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page, GeoLiftSpacing.xs,
+          GeoLiftSpacing.page, GeoLiftSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.event_repeat_rounded,
+              size: 18, color: colorScheme.secondary),
+          const SizedBox(width: GeoLiftSpacing.sm),
+          Expanded(
+            child: Text(
+              'Automático cada semana · $cuando · $donde',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _haceCuanto(DateTime? fecha) {
+    if (fecha == null) return 'todavía sin respaldos';
+    final dias = DateTime.now().difference(fecha).inDays;
+    return switch (dias) {
+      0 => 'último hoy',
+      1 => 'último ayer',
+      _ => 'último hace $dias días',
+    };
   }
 }
