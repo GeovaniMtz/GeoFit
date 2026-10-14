@@ -205,7 +205,7 @@ class _TarjetaRespaldoState extends ConsumerState<_TarjetaRespaldo> {
           .read(respaldoServiceProvider)
           .elegirYRestaurar(ref.read(databaseProvider));
       if (!restaurado) return;
-      refrescarTodosLosDatos(ref);
+      recargarPreferencias(ref);
       _avisar('Respaldo restaurado.');
     } on RespaldoInvalido catch (e) {
       _avisar(e.mensaje);

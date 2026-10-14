@@ -274,9 +274,6 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
         }
       }
 
-      ref.invalidate(rutinasActivasProvider);
-      ref.invalidate(diasDeRutinaProvider(rutinaId));
-      ref.invalidate(ejerciciosEnUsoProvider);
       _sucio = false;
       if (mounted) Navigator.of(context).pop('guardado');
     } finally {
@@ -350,8 +347,6 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
     final db = ref.read(databaseProvider);
     try {
       await db.archivarRutina(rutinaId);
-      ref.invalidate(rutinasActivasProvider);
-      ref.invalidate(ejerciciosEnUsoProvider);
       _sucio = false;
       if (mounted) Navigator.of(context).pop('eliminado');
     } finally {

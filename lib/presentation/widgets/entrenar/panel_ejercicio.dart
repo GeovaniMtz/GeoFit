@@ -328,14 +328,6 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     ));
     await db.actualizarDuracionSesion(widget.sesionId);
 
-    // MainShell mantiene Historial y Rutinas vivos todo el tiempo (usa
-    // IndexedStack), así que sin esto sus datos se quedan tal cual estaban
-    // la primera vez que se leyeron, aunque acabes de registrar esta serie.
-    ref.invalidate(historialPorEjercicioProvider(widget.objetivo.ejercicioId));
-    ref.invalidate(historialDeSesionesProvider);
-    final dia = await db.obtenerDia(widget.objetivo.rutinaDiaId);
-    ref.invalidate(ultimoDiaEntrenadoProvider(dia.rutinaId));
-
     if (!mounted) return;
 
     final esUltimaSerie = _numeroSet >= widget.objetivo.seriesObjetivo;

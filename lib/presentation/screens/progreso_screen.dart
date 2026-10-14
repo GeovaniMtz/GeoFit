@@ -51,7 +51,6 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
     if (peso == null) return;
     // Se captura en la unidad elegida pero siempre se guarda en kg.
     await ref.read(databaseProvider).registrarPesoCorporal(unidad.aKg(peso));
-    ref.invalidate(historialPesoCorporalProvider);
   }
 
   @override

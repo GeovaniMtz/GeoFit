@@ -10,6 +10,7 @@ import 'tables.dart';
 export 'tables.dart';
 export 'queries/configuracion_queries.dart';
 export 'queries/ejercicios_queries.dart';
+export 'queries/observar.dart';
 export 'queries/peso_corporal_queries.dart';
 export 'queries/respaldo_queries.dart';
 export 'queries/rutina_ejercicios_queries.dart';

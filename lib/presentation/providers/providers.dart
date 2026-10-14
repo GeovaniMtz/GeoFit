@@ -57,74 +57,87 @@ final estadoRespaldoAutomaticoProvider =
   return (ultimo: await auto.ultimo(), carpeta: auto.carpeta.path);
 });
 
-/// Vuelve a leer de la base todo lo que las pantallas tienen en caché. Se
-/// usa tras restaurar un respaldo, cuando cambian todos los datos de golpe
-/// (incluidos tema y unidad de peso).
-void refrescarTodosLosDatos(WidgetRef ref) {
+/// Vuelve a leer de la base las preferencias (tema y unidad de peso). Se
+/// usa tras restaurar un respaldo: los datos se refrescan solos (los
+/// providers son reactivos), pero los controladores de preferencias solo
+/// leen la base al crearse.
+void recargarPreferencias(WidgetRef ref) {
   ref
-    ..invalidate(rutinasActivasProvider)
-    ..invalidate(diasDeRutinaProvider)
-    ..invalidate(ultimoDiaEntrenadoProvider)
-    ..invalidate(ejerciciosDeDiaProvider)
-    ..invalidate(catalogoDeEjerciciosProvider)
-    ..invalidate(ejerciciosEnUsoProvider)
-    ..invalidate(historialPorEjercicioProvider)
-    ..invalidate(historialDeSesionesProvider)
-    ..invalidate(historialPesoCorporalProvider)
-    ..invalidate(configuracionProvider)
     ..invalidate(temaControllerProvider)
     ..invalidate(unidadPesoProvider);
 }
 
 // ---- Rutinas ---------------------------------------------------------------
 
-final rutinasActivasProvider = FutureProvider<List<Rutina>>((ref) {
-  return ref.watch(databaseProvider).rutinasActivas();
+// Todos los providers de datos son reactivos (ver [Observar.observar]): se
+// actualizan solos cuando cambia alguna de las tablas que leen, así que
+// después de guardar algo NO hace falta invalidarlos a mano. Cada uno lista
+// las tablas que lee su consulta; si una consulta empieza a leer otra
+// tabla, hay que agregarla aquí.
+
+final rutinasActivasProvider = StreamProvider<List<Rutina>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar([db.rutinas], db.rutinasActivas);
 });
 
 final diasDeRutinaProvider =
-    FutureProvider.family<List<RutinaDia>, int>((ref, rutinaId) {
-  return ref.watch(databaseProvider).diasDeRutina(rutinaId);
+    StreamProvider.family<List<RutinaDia>, int>((ref, rutinaId) {
+  final db = ref.watch(databaseProvider);
+  return db.observar([db.rutinaDias], () => db.diasDeRutina(rutinaId));
 });
 
 final ultimoDiaEntrenadoProvider =
-    FutureProvider.family<RutinaDia?, int>((ref, rutinaId) {
-  return ref.watch(databaseProvider).ultimoDiaEntrenado(rutinaId);
+    StreamProvider.family<RutinaDia?, int>((ref, rutinaId) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.sesionesEntrenamiento, db.rutinaDias],
+    () => db.ultimoDiaEntrenado(rutinaId),
+  );
 });
 
 final ejerciciosDeDiaProvider =
-    FutureProvider.family<List<RutinaEjercicio>, int>((ref, rutinaDiaId) {
-  return ref.watch(databaseProvider).ejerciciosDeDia(rutinaDiaId);
+    StreamProvider.family<List<RutinaEjercicio>, int>((ref, rutinaDiaId) {
+  final db = ref.watch(databaseProvider);
+  return db
+      .observar([db.rutinaEjercicios], () => db.ejerciciosDeDia(rutinaDiaId));
 });
 
-final catalogoDeEjerciciosProvider = FutureProvider<List<Ejercicio>>((ref) {
-  return ref.watch(databaseProvider).catalogoDeEjercicios();
+final catalogoDeEjerciciosProvider = StreamProvider<List<Ejercicio>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar([db.ejercicios], db.catalogoDeEjercicios);
 });
 
-final ejerciciosEnUsoProvider = FutureProvider<List<Ejercicio>>((ref) {
-  return ref.watch(databaseProvider).ejerciciosEnUso();
+final ejerciciosEnUsoProvider = StreamProvider<List<Ejercicio>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.ejercicios, db.rutinaEjercicios, db.rutinaDias, db.rutinas],
+    db.ejerciciosEnUso,
+  );
 });
 
 // ---- Progreso / historial ---------------------------------------------------
 
 final historialPorEjercicioProvider =
-    FutureProvider.family<List<RegistroConFecha>, int>((ref, ejercicioId) {
-  return ref.watch(databaseProvider).historialPorEjercicio(ejercicioId);
+    StreamProvider.family<List<RegistroConFecha>, int>((ref, ejercicioId) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.registrosSet, db.rutinaEjercicios, db.sesionesEntrenamiento],
+    () => db.historialPorEjercicio(ejercicioId),
+  );
 });
 
-final historialDeSesionesProvider = FutureProvider<List<SesionResumen>>((ref) {
-  return ref.watch(databaseProvider).historialDeSesiones();
+final historialDeSesionesProvider = StreamProvider<List<SesionResumen>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.sesionesEntrenamiento, db.rutinaDias, db.registrosSet],
+    db.historialDeSesiones,
+  );
 });
 
 final historialPesoCorporalProvider =
-    FutureProvider<List<RegistrosPesoCorporalData>>((ref) {
-  return ref.watch(databaseProvider).historialPesoCorporal();
-});
-
-// ---- Configuración -----------------------------------------------------
-
-final configuracionProvider = FutureProvider<ConfiguracionData>((ref) {
-  return ref.watch(databaseProvider).obtenerConfiguracion();
+    StreamProvider<List<RegistrosPesoCorporalData>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar([db.registrosPesoCorporal], db.historialPesoCorporal);
 });
 
 /// Preferencia de tema del usuario, tal como se guarda en la tabla
