@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/escaner_rutina_service.dart';
 import '../../core/notification_service.dart';
+import '../../core/respaldo_service.dart';
 import '../../data/database.dart';
 import '../../domain/progresion_service.dart';
 import '../../domain/unidad_peso.dart';
@@ -35,6 +36,29 @@ final escanerRutinaServiceProvider = Provider<EscanerRutinaService>((ref) {
   ref.onDispose(servicio.cerrar);
   return servicio;
 });
+
+final respaldoServiceProvider = Provider<RespaldoService>((ref) {
+  return RespaldoService();
+});
+
+/// Vuelve a leer de la base todo lo que las pantallas tienen en caché. Se
+/// usa tras restaurar un respaldo, cuando cambian todos los datos de golpe
+/// (incluidos tema y unidad de peso).
+void refrescarTodosLosDatos(WidgetRef ref) {
+  ref
+    ..invalidate(rutinasActivasProvider)
+    ..invalidate(diasDeRutinaProvider)
+    ..invalidate(ultimoDiaEntrenadoProvider)
+    ..invalidate(ejerciciosDeDiaProvider)
+    ..invalidate(catalogoDeEjerciciosProvider)
+    ..invalidate(ejerciciosEnUsoProvider)
+    ..invalidate(historialPorEjercicioProvider)
+    ..invalidate(historialDeSesionesProvider)
+    ..invalidate(historialPesoCorporalProvider)
+    ..invalidate(configuracionProvider)
+    ..invalidate(temaControllerProvider)
+    ..invalidate(unidadPesoProvider);
+}
 
 // ---- Rutinas ---------------------------------------------------------------
 

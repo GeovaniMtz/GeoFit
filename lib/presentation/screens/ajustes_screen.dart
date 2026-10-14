@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../data/database.dart';
 import '../providers/providers.dart';
 import '../widgets/comunes.dart';
 
@@ -103,6 +104,9 @@ class AjustesScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: GeoLiftSpacing.xxl),
+          const EncabezadoSeccion('Respaldo'),
+          const _TarjetaRespaldo(),
+          const SizedBox(height: GeoLiftSpacing.xxl),
           const EncabezadoSeccion('Acerca de'),
           Card(
             child: Padding(
@@ -131,6 +135,124 @@ class AjustesScreen extends ConsumerWidget {
                 ],
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Exportar toda la base a un archivo (para guardarlo en Drive, WhatsApp…)
+/// y restaurarla desde uno. Sin esto, reinstalar la app o cambiar de
+/// teléfono borra todo el historial.
+class _TarjetaRespaldo extends ConsumerStatefulWidget {
+  const _TarjetaRespaldo();
+
+  @override
+  ConsumerState<_TarjetaRespaldo> createState() => _TarjetaRespaldoState();
+}
+
+class _TarjetaRespaldoState extends ConsumerState<_TarjetaRespaldo> {
+  bool _ocupado = false;
+
+  void _avisar(String mensaje) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
+  Future<void> _exportar() async {
+    setState(() => _ocupado = true);
+    try {
+      await ref
+          .read(respaldoServiceProvider)
+          .exportarYCompartir(ref.read(databaseProvider));
+    } catch (_) {
+      _avisar('No se pudo crear el respaldo.');
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  Future<void> _restaurar() async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Restaurar un respaldo?'),
+        content: const Text(
+          'Todos tus datos actuales (rutinas, historial, progreso y ajustes) '
+          'se reemplazan por los del respaldo. Si tienes algo nuevo que no '
+          'esté en ese archivo, expórtalo primero.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('ELEGIR ARCHIVO'),
+          ),
+        ],
+      ),
+    );
+    if (confirmado != true || !mounted) return;
+
+    setState(() => _ocupado = true);
+    try {
+      final restaurado = await ref
+          .read(respaldoServiceProvider)
+          .elegirYRestaurar(ref.read(databaseProvider));
+      if (!restaurado) return;
+      refrescarTodosLosDatos(ref);
+      _avisar('Respaldo restaurado.');
+    } on RespaldoInvalido catch (e) {
+      _avisar(e.mensaje);
+    } catch (_) {
+      _avisar('No se pudo restaurar el respaldo. Tus datos no cambiaron.');
+    } finally {
+      if (mounted) setState(() => _ocupado = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                GeoLiftSpacing.page, GeoLiftSpacing.page, GeoLiftSpacing.sm),
+            child: Text(
+              'Tus datos solo viven en este teléfono. Guarda un respaldo en '
+              'Drive, WhatsApp o donde quieras para no perderlos al '
+              'reinstalar o cambiar de cel.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          if (_ocupado)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: GeoLiftSpacing.page),
+              child: LinearProgressIndicator(minHeight: 4),
+            ),
+          ListTile(
+            enabled: !_ocupado,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: GeoLiftSpacing.page),
+            leading: const IconoEnCaja(Icons.ios_share_rounded),
+            title: const Text('Exportar respaldo'),
+            subtitle: const Text('Crea un archivo con todos tus datos'),
+            onTap: _exportar,
+          ),
+          ListTile(
+            enabled: !_ocupado,
+            contentPadding: const EdgeInsets.fromLTRB(
+                GeoLiftSpacing.page, 0, GeoLiftSpacing.page, GeoLiftSpacing.sm),
+            leading: const IconoEnCaja(Icons.settings_backup_restore_rounded),
+            title: const Text('Restaurar respaldo'),
+            subtitle: const Text('Reemplaza tus datos por los de un archivo'),
+            onTap: _restaurar,
           ),
         ],
       ),

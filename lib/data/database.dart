@@ -11,6 +11,7 @@ export 'tables.dart';
 export 'queries/configuracion_queries.dart';
 export 'queries/ejercicios_queries.dart';
 export 'queries/peso_corporal_queries.dart';
+export 'queries/respaldo_queries.dart';
 export 'queries/rutina_ejercicios_queries.dart';
 export 'queries/rutinas_queries.dart';
 export 'queries/sesiones_queries.dart';
