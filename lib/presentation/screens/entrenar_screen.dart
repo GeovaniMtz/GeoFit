@@ -5,6 +5,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/notification_service.dart';
+import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
 import '../widgets/entrenar/panel_ejercicio.dart';
@@ -126,7 +127,8 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
             data: (ejercicios) => ejercicios.isEmpty
                 ? const SizedBox.shrink()
                 : Padding(
-                    padding: const EdgeInsets.only(right: 16),
+                    padding:
+                        const EdgeInsets.only(right: GeoLiftSpacing.page),
                     child: Center(
                       child: Text(
                         'Ejercicio ${_indiceEjercicio + 1} de '
@@ -138,6 +140,27 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
             orElse: () => const SizedBox.shrink(),
           ),
         ],
+        // Avance de la sesión completa (ejercicio actual / total): da
+        // contexto de "cuánto falta" sin tener que leer el contador.
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(6),
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: GeoLiftSpacing.page),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+              child: LinearProgressIndicator(
+                minHeight: 4,
+                value: ejerciciosAsync.maybeWhen(
+                  data: (ejercicios) => ejercicios.isEmpty
+                      ? 0
+                      : (_indiceEjercicio + 1) / ejercicios.length,
+                  orElse: () => 0,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
       body: Stack(
         children: [

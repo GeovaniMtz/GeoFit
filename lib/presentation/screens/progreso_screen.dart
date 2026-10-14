@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
+import '../widgets/comunes.dart';
 import '../widgets/estado_error.dart';
 
 class ProgresoScreen extends ConsumerStatefulWidget {
@@ -63,9 +65,11 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
         ),
         data: (ejercicios) {
           if (ejercicios.isEmpty) {
-            return const Center(
-              child: Text('Agrega ejercicios a una rutina para ver su '
-                  'progreso aquí.'),
+            return const EstadoVacio(
+              icono: Icons.show_chart_rounded,
+              titulo: 'Aún no hay progreso que mostrar',
+              detalle: 'Agrega ejercicios a una rutina y entrena para ver '
+                  'tu progreso aquí.',
             );
           }
           // La lista puede reducirse en caliente (se archivó una rutina, se
@@ -77,8 +81,10 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
             children: [
+              const EncabezadoSeccion('Fuerza'),
               DropdownButtonFormField<int>(
                 initialValue: _ejercicioSeleccionado,
                 decoration: const InputDecoration(labelText: 'Ejercicio'),
@@ -93,30 +99,25 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
                 onChanged: (valor) =>
                     setState(() => _ejercicioSeleccionado = valor),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: GeoLiftSpacing.md),
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(GeoLiftSpacing.page),
                   child: _GraficaE1rm(ejercicioId: _ejercicioSeleccionado!),
                 ),
               ),
-              const SizedBox(height: 28),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('PESO CORPORAL',
-                      style: Theme.of(context).textTheme.labelSmall),
-                  TextButton.icon(
-                    onPressed: () => _registrarPesoCorporal(context),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('REGISTRAR'),
-                  ),
-                ],
+              const SizedBox(height: GeoLiftSpacing.xxl),
+              EncabezadoSeccion(
+                'Peso corporal',
+                accion: IconButton(
+                  onPressed: () => _registrarPesoCorporal(context),
+                  tooltip: 'Registrar peso corporal',
+                  icon: const Icon(Icons.add_rounded),
+                ),
               ),
-              const SizedBox(height: 4),
               const Card(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(GeoLiftSpacing.page),
                   child: _GraficaPesoCorporal(),
                 ),
               ),

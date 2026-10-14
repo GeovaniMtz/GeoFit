@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme.dart';
+
 /// Muestra el peso y las reps de la sesión anterior para este ejercicio,
 /// como referencia rápida mientras se registra la serie de hoy.
 class CajaReferencia extends StatelessWidget {
@@ -11,10 +13,11 @@ class CajaReferencia extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(
+          horizontal: GeoLiftSpacing.lg, vertical: GeoLiftSpacing.md),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(GeoLiftRadius.md),
         border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(

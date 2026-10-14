@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../../domain/planificador_rutina.dart';
 import '../providers/providers.dart';
+import '../widgets/comunes.dart';
 import '../widgets/estado_error.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -19,6 +21,7 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('GeoLift')),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _EncabezadoDeHoy(),
           Expanded(
@@ -32,11 +35,10 @@ class HomeScreen extends ConsumerWidget {
                   return const _SinRutinas();
                 }
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                      GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
                   children: [
-                    Text('TUS RUTINAS ACTIVAS',
-                        style: Theme.of(context).textTheme.labelSmall),
-                    const SizedBox(height: 12),
+                    const EncabezadoSeccion('Tus rutinas activas'),
                     for (final rutina in lista) _TarjetaRutina(rutina: rutina),
                   ],
                 );
@@ -58,12 +60,13 @@ class _EncabezadoDeHoy extends StatelessWidget {
       DateFormat("EEEE d 'de' MMMM", 'es').format(DateTime.now()),
     );
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          GeoLiftSpacing.page, 0, GeoLiftSpacing.page, GeoLiftSpacing.lg),
       child: Text(
         'Hoy es $texto',
         style: Theme.of(context)
             .textTheme
-            .labelLarge
+            .titleMedium
             ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
     );
@@ -80,31 +83,21 @@ class _SinRutinas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.fitness_center,
-                size: 48, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 12),
-            const Text('Todavía no tienes una rutina.',
-                textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () async {
-                final resultado = await context.push<String>('/rutinas/nueva');
-                if (resultado == 'guardado' && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Rutina guardada.')),
-                  );
-                }
-              },
-              child: const Text('CREAR MI PRIMERA RUTINA'),
-            ),
-          ],
-        ),
+    return EstadoVacio(
+      icono: Icons.fitness_center,
+      titulo: 'Todavía no tienes una rutina.',
+      detalle: 'Arma tus días y ejercicios una vez y aquí te dirá qué toca.',
+      accion: FilledButton.icon(
+        onPressed: () async {
+          final resultado = await context.push<String>('/rutinas/nueva');
+          if (resultado == 'guardado' && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Rutina guardada.')),
+            );
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('CREAR MI PRIMERA RUTINA'),
       ),
     );
   }
@@ -116,7 +109,7 @@ class _SinRutinas extends StatelessWidget {
 /// "SIGUIENTE". No está atado a la fecha de calendario: si todavía no se ha
 /// entrenado ningún día, el primero se marca como siguiente aunque el
 /// usuario no vaya a empezar hoy. El resto de los días conserva su propio
-/// botón para poder entrenar cualquiera.
+/// botón de ▶ para poder entrenar cualquiera.
 class _TarjetaRutina extends ConsumerWidget {
   final Rutina rutina;
   const _TarjetaRutina({required this.rutina});
@@ -125,15 +118,14 @@ class _TarjetaRutina extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dias = ref.watch(diasDeRutinaProvider(rutina.id));
     final ultimoEntrenado = ref.watch(ultimoDiaEntrenadoProvider(rutina.id));
-    final colorScheme = Theme.of(context).colorScheme;
 
     return dias.when(
       loading: () => const Padding(
-        padding: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(bottom: GeoLiftSpacing.lg),
         child: LinearProgressIndicator(),
       ),
       error: (e, _) => const Padding(
-        padding: EdgeInsets.only(bottom: 12),
+        padding: EdgeInsets.only(bottom: GeoLiftSpacing.lg),
         child: Text('No se pudo cargar.'),
       ),
       data: (listaDias) {
@@ -142,89 +134,104 @@ class _TarjetaRutina extends ConsumerWidget {
           orElse: () => null,
         );
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 14),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: colorScheme.outlineVariant),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                rutina.nombre.toUpperCase(),
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(letterSpacing: 1.4),
-              ),
-              const SizedBox(height: 10),
-              if (listaDias.isEmpty)
-                Text('Sin días configurados todavía.',
-                    style: Theme.of(context).textTheme.bodyMedium)
-              else
-                for (final dia in listaDias)
+        return Card(
+          margin: const EdgeInsets.only(bottom: GeoLiftSpacing.lg),
+          child: Padding(
+            padding: const EdgeInsets.all(GeoLiftSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.md,
+                      GeoLiftSpacing.md, GeoLiftSpacing.md, GeoLiftSpacing.sm),
+                  child: Text(rutina.nombre,
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                if (listaDias.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(
-                                child: Text(dia.nombreDia,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium),
-                              ),
-                              if (dia.id == diaDeHoy?.id) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.primary
-                                        .withValues(alpha: 0.16),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Text(
-                                    'SIGUIENTE',
-                                    style: TextStyle(
-                                      color: colorScheme.primary,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 11,
-                                      letterSpacing: 0.4,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        FilledButton(
-                          onPressed: () {
-                            HapticFeedback.mediumImpact();
-                            context.push('/entrenar/${dia.id}');
-                          },
-                          style: FilledButton.styleFrom(
-                            backgroundColor:
-                                colorScheme.primary.withValues(alpha: 0.14),
-                            foregroundColor: colorScheme.primary,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 18, vertical: 14),
-                          ),
-                          child: const Text('ENTRENAR'),
-                        ),
-                      ],
-                    ),
-                  ),
-            ],
+                    padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.md, 0,
+                        GeoLiftSpacing.md, GeoLiftSpacing.md),
+                    child: Text('Sin días configurados todavía.',
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  )
+                else
+                  for (final dia in listaDias)
+                    _FilaDia(dia: dia, esSiguiente: dia.id == diaDeHoy?.id),
+              ],
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Una fila por día: su nombre y un botón ▶ para entrenarlo. El día que
+/// toca se resalta con fondo de acento y un ▶ relleno; los demás llevan un
+/// ▶ discreto.
+class _FilaDia extends StatelessWidget {
+  final RutinaDia dia;
+  final bool esSiguiente;
+  const _FilaDia({required this.dia, required this.esSiguiente});
+
+  void _entrenar(BuildContext context) {
+    HapticFeedback.mediumImpact();
+    context.push('/entrenar/${dia.id}');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tooltip = 'Entrenar ${dia.nombreDia}';
+
+    return Padding(
+      padding: const EdgeInsets.only(top: GeoLiftSpacing.xs),
+      child: Material(
+        color: esSiguiente
+            ? colorScheme.primary.withValues(alpha: 0.10)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(GeoLiftRadius.md),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(GeoLiftRadius.md),
+          onTap: () => _entrenar(context),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+                GeoLiftSpacing.md, GeoLiftSpacing.sm, GeoLiftSpacing.sm,
+                GeoLiftSpacing.sm),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(dia.nombreDia,
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                if (esSiguiente) ...[
+                  const SizedBox(width: GeoLiftSpacing.sm),
+                  const Etiqueta('SIGUIENTE'),
+                ],
+                const Spacer(),
+                esSiguiente
+                    ? IconButton.filled(
+                        onPressed: () => _entrenar(context),
+                        tooltip: tooltip,
+                        style: IconButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                      )
+                    : IconButton(
+                        onPressed: () => _entrenar(context),
+                        tooltip: tooltip,
+                        style: IconButton.styleFrom(
+                          foregroundColor: colorScheme.primary,
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                      ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

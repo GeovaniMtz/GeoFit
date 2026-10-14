@@ -57,6 +57,40 @@ class GeoLiftLightColors {
   static const onError = Color(0xFFFFF7F2);
 }
 
+/// Escala única de bordes redondeados. Antes cada widget elegía el suyo
+/// (6, 8, 9, 10, 12, 14…) y eso se notaba como falta de armonía: todo lo
+/// que tenga esquinas debe salir de aquí.
+class GeoLiftRadius {
+  GeoLiftRadius._();
+
+  /// Chips, etiquetas, elementos pequeños.
+  static const double sm = 8;
+
+  /// Botones, campos de texto, steppers, filas tocables.
+  static const double md = 14;
+
+  /// Tarjetas y contenedores de sección.
+  static const double lg = 20;
+
+  /// Diálogos y hojas inferiores.
+  static const double xl = 28;
+}
+
+/// Escala de espaciado (múltiplos de 4). [page] es el margen lateral de
+/// todas las pantallas; los saltos entre bloques salen del resto.
+class GeoLiftSpacing {
+  GeoLiftSpacing._();
+
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 24;
+  static const double xxl = 32;
+
+  static const double page = 20;
+}
+
 ThemeData geoLiftDarkTheme() => _geoLiftTheme(brightness: Brightness.dark);
 
 ThemeData geoLiftLightTheme() => _geoLiftTheme(brightness: Brightness.light);
@@ -109,7 +143,7 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
     surfaceContainerHigh: surfaceHigh,
     surfaceContainerHighest: surfaceHighest,
     onSurfaceVariant: textMuted,
-    outline: border,
+    outline: borderStrong,
     outlineVariant: border,
     inverseSurface: text,
     onInverseSurface: bg,
@@ -139,13 +173,16 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
     labelLarge: baseText.labelLarge?.copyWith(fontWeight: FontWeight.w800),
     labelMedium: baseText.labelMedium?.copyWith(fontWeight: FontWeight.w700),
     labelSmall: baseText.labelSmall?.copyWith(
-      fontWeight: FontWeight.w700,
+      fontWeight: FontWeight.w800,
       color: textFaint,
-      letterSpacing: 0.4,
+      letterSpacing: 1.2,
     ),
     bodyMedium: baseText.bodyMedium?.copyWith(color: textMuted),
     bodySmall: baseText.bodySmall?.copyWith(color: textMuted),
   );
+
+  final radioMd = BorderRadius.circular(GeoLiftRadius.md);
+  final formaMd = RoundedRectangleBorder(borderRadius: radioMd);
 
   return ThemeData(
     useMaterial3: true,
@@ -159,13 +196,16 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
     appBarTheme: AppBarTheme(
       backgroundColor: bg,
       foregroundColor: text,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
+      titleSpacing: GeoLiftSpacing.page,
       titleTextStyle: TextStyle(
         fontFamily: 'Oswald',
-        fontWeight: FontWeight.w600,
-        fontSize: 20,
-        letterSpacing: 0.6,
+        fontWeight: FontWeight.w700,
+        fontSize: 26,
+        letterSpacing: 0.4,
         color: text,
       ),
     ),
@@ -173,105 +213,137 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
       color: surface,
       elevation: 0,
       margin: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
         side: BorderSide(color: border),
       ),
     ),
     listTileTheme: ListTileThemeData(
       iconColor: textMuted,
       textColor: text,
+      shape: formaMd,
     ),
-    dividerTheme: DividerThemeData(color: border, thickness: 1),
+    dividerTheme: DividerThemeData(color: border, thickness: 1, space: 1),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: accent,
         foregroundColor: onAccent,
         disabledBackgroundColor: surfaceHighest,
         disabledForegroundColor: textFaint,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        minimumSize: const Size(48, 56),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         textStyle: const TextStyle(
           fontFamily: 'Manrope',
           fontWeight: FontWeight.w800,
-          fontSize: 16,
-          letterSpacing: 0.2,
+          fontSize: 15,
+          letterSpacing: 0.8,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: formaMd,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: textMuted,
-        side: BorderSide(color: borderStrong, width: 1.4),
+        foregroundColor: text,
+        side: BorderSide(color: borderStrong, width: 1.2),
+        minimumSize: const Size(48, 52),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         textStyle: const TextStyle(
-            fontFamily: 'Manrope', fontWeight: FontWeight.w700, fontSize: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          fontFamily: 'Manrope',
+          fontWeight: FontWeight.w800,
+          fontSize: 14,
+          letterSpacing: 0.6,
         ),
+        shape: formaMd,
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         foregroundColor: accent,
         textStyle: const TextStyle(
-            fontFamily: 'Manrope', fontWeight: FontWeight.w700, fontSize: 13),
+          fontFamily: 'Manrope',
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          letterSpacing: 0.6,
+        ),
+        shape: formaMd,
       ),
     ),
+    // Botones de solo ícono: superficie suave, sin borde, mismo radio que
+    // el resto de botones. Los que necesiten destacar usan IconButton.filled.
     iconButtonTheme: IconButtonThemeData(
       style: IconButton.styleFrom(
         backgroundColor: surfaceHigh,
         foregroundColor: textMuted,
-        side: BorderSide(color: border),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
-        ),
-        minimumSize: const Size(44, 44),
+        disabledBackgroundColor: surfaceHigh,
+        disabledForegroundColor: textFaint.withValues(alpha: 0.5),
+        shape: formaMd,
+        minimumSize: const Size(48, 48),
       ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: accent,
+      foregroundColor: onAccent,
+      elevation: 0,
+      focusElevation: 0,
+      hoverElevation: 0,
+      highlightElevation: 0,
+      iconSize: 28,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
+      ),
+    ),
+    // Como muchos botones ya no llevan texto, el tooltip es su "nombre":
+    // se ve al mantener presionado y lo leen los lectores de pantalla.
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        color: surfaceHighest,
+        borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+        border: Border.all(color: borderStrong),
+      ),
+      textStyle: TextStyle(
+        fontFamily: 'Manrope',
+        fontWeight: FontWeight.w700,
+        fontSize: 12,
+        color: text,
+      ),
+      waitDuration: const Duration(milliseconds: 400),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: surfaceHigh,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: radioMd,
         borderSide: BorderSide(color: border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: radioMd,
         borderSide: BorderSide(color: border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: radioMd,
         borderSide: BorderSide(color: accent, width: 1.6),
       ),
       labelStyle: TextStyle(color: textFaint, fontWeight: FontWeight.w700),
       hintStyle: TextStyle(color: textFaint),
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: surface,
-      indicatorColor: Colors.transparent,
+      // Solo íconos: el nombre de cada sección queda como tooltip (mantener
+      // presionado) y la píldora de color marca cuál está activa.
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+      indicatorColor: accent.withValues(alpha: dark ? 0.18 : 0.14),
+      indicatorShape: formaMd,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
-      height: 68,
-      labelTextStyle: WidgetStateProperty.resolveWith((states) {
-        final selected = states.contains(WidgetState.selected);
-        return TextStyle(
-          fontFamily: 'Manrope',
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-          color: selected ? accent : textFaint,
-        );
-      }),
+      height: 64,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         final selected = states.contains(WidgetState.selected);
         return IconThemeData(
           color: selected ? accent : textFaint,
-          size: 22,
+          size: 26,
         );
       }),
     ),
@@ -286,6 +358,10 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
           return states.contains(WidgetState.selected) ? onAccent : textMuted;
         }),
         side: WidgetStatePropertyAll(BorderSide(color: border)),
+        shape: WidgetStatePropertyAll(formaMd),
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(vertical: 14),
+        ),
         textStyle: const WidgetStatePropertyAll(
           TextStyle(
               fontFamily: 'Manrope', fontWeight: FontWeight.w700, fontSize: 13),
@@ -293,13 +369,14 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
       ),
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: surfaceHigh,
-      contentTextStyle: TextStyle(color: text),
+      backgroundColor: surfaceHighest,
+      contentTextStyle: TextStyle(
+          color: text, fontFamily: 'Manrope', fontWeight: FontWeight.w600),
       actionTextColor: accent,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: border),
+        borderRadius: radioMd,
+        side: BorderSide(color: borderStrong),
       ),
     ),
     dialogTheme: DialogThemeData(
@@ -308,15 +385,28 @@ ThemeData _geoLiftTheme({required Brightness brightness}) {
       titleTextStyle: TextStyle(
         fontFamily: 'Oswald',
         fontWeight: FontWeight.w600,
-        fontSize: 18,
+        fontSize: 22,
         color: text,
       ),
       contentTextStyle: TextStyle(fontFamily: 'Manrope', color: textMuted),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(GeoLiftRadius.xl),
         side: BorderSide(color: border),
       ),
     ),
-    progressIndicatorTheme: ProgressIndicatorThemeData(color: accent),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: surface,
+      surfaceTintColor: Colors.transparent,
+      showDragHandle: true,
+      dragHandleColor: borderStrong,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(GeoLiftRadius.xl)),
+      ),
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: accent,
+      linearTrackColor: surfaceHighest,
+    ),
   );
 }

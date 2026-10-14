@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme.dart';
+
 /// Botón cuadrado +/- grande, pensado para tocarse con el pulgar mientras se
 /// ajustan peso o reps entre series.
 class BotonStepper extends StatelessWidget {
@@ -11,7 +13,7 @@ class BotonStepper extends StatelessWidget {
     super.key,
     required this.icono,
     required this.onPressed,
-    this.tamano = 56,
+    this.tamano = 60,
     required this.tooltip,
   });
 
@@ -19,31 +21,24 @@ class BotonStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final grande = tamano >= 56;
-    return SizedBox(
-      width: tamano,
-      height: tamano,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          backgroundColor: colorScheme.surfaceContainerHigh,
-          disabledBackgroundColor: colorScheme.surfaceContainerHigh,
-          side: BorderSide(color: colorScheme.outlineVariant),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(grande ? 14 : 10),
-          ),
-        ),
-        child: Tooltip(
-          message: tooltip,
-          child: Icon(
-            icono,
-            size: grande ? 26 : 18,
-            color: onPressed == null
-                ? colorScheme.onSurfaceVariant.withValues(alpha: 0.4)
-                : colorScheme.onSurface,
-          ),
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      iconSize: grande ? 30 : 22,
+      style: IconButton.styleFrom(
+        fixedSize: Size.square(tamano),
+        minimumSize: Size.square(tamano),
+        backgroundColor: colorScheme.surfaceContainerHigh,
+        foregroundColor: colorScheme.onSurface,
+        disabledBackgroundColor: colorScheme.surfaceContainerHigh,
+        disabledForegroundColor:
+            colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+        side: BorderSide(color: colorScheme.outlineVariant),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GeoLiftRadius.md),
         ),
       ),
+      icon: Icon(icono),
     );
   }
 }

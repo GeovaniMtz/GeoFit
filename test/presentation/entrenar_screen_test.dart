@@ -356,7 +356,7 @@ void main() {
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('No puedo ahora, saltar'));
+      await tester.tap(find.byTooltip('No puedo ahora, saltar'));
       await tester.pumpAndSettle();
 
       // Sigue en la misma posición de la cola ("ejercicio 1"), pero ahora
@@ -381,7 +381,7 @@ void main() {
       expect(find.text('Press de banca'), findsOneWidget);
       expect(find.text('SERIE 2/2'), findsOneWidget);
       // Es el último de la cola: ya no hay a quién saltarle.
-      expect(find.text('No puedo ahora, saltar'), findsNothing);
+      expect(find.byTooltip('No puedo ahora, saltar'), findsNothing);
 
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();

@@ -84,7 +84,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('ELIMINAR RUTINA'));
+      await tester.tap(find.byTooltip('Eliminar rutina'));
       await tester.pumpAndSettle();
 
       // Pide confirmación antes de archivarla.

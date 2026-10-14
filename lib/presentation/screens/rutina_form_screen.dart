@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../../domain/clasificador_ejercicio.dart';
 import '../providers/providers.dart';
@@ -372,11 +373,37 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
         appBar: AppBar(
           title:
               Text(widget.rutinaId == null ? 'Nueva rutina' : 'Editar rutina'),
+          actions: [
+            if (widget.rutinaId != null)
+              Padding(
+                padding: const EdgeInsets.only(right: GeoLiftSpacing.md),
+                child: IconButton(
+                  onPressed: (_guardando || _eliminando || _cargando)
+                      ? null
+                      : _confirmarEliminar,
+                  tooltip: 'Eliminar rutina',
+                  style: IconButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  icon: _eliminando
+                      ? SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.error,
+                          ),
+                        )
+                      : const Icon(Icons.delete_outline_rounded),
+                ),
+              ),
+          ],
         ),
         body: _cargando
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+                    GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xxl),
                 children: [
                   TextField(
                     controller: _controladorNombreRutina,
@@ -385,7 +412,7 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                       hintText: 'p. ej. Push / Pull / Legs',
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: GeoLiftSpacing.xl),
                   for (var i = 0; i < _dias.length; i++)
                     TarjetaDia(
                       indice: i,
@@ -402,10 +429,10 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                     ),
                   OutlinedButton.icon(
                     onPressed: _agregarDia,
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: const Text('AGREGAR DÍA'),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: GeoLiftSpacing.xl),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
@@ -422,33 +449,6 @@ class _RutinaFormScreenState extends ConsumerState<RutinaFormScreen> {
                           : const Text('GUARDAR RUTINA'),
                     ),
                   ),
-                  if (widget.rutinaId != null) ...[
-                    const SizedBox(height: 32),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: TextButton.icon(
-                        onPressed: (_guardando || _eliminando)
-                            ? null
-                            : _confirmarEliminar,
-                        style: TextButton.styleFrom(
-                          foregroundColor: Theme.of(context).colorScheme.error,
-                        ),
-                        icon: _eliminando
-                            ? SizedBox(
-                                height: 16,
-                                width: 16,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
-                              )
-                            : const Icon(Icons.delete_outline),
-                        label: const Text('ELIMINAR RUTINA'),
-                      ),
-                    ),
-                  ],
                 ],
               ),
       ),

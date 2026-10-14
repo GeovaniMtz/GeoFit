@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/theme.dart';
 import '../../../data/database.dart';
 import '../../providers/providers.dart';
+import '../comunes.dart';
 import 'boton_stepper.dart';
 import 'caja_referencia.dart';
 import 'punto_serie.dart';
@@ -349,7 +351,8 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     return Stack(
       children: [
         SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+              GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -358,33 +361,53 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                 error: (e, _) => const Text('No se pudo cargar.'),
                 data: (lista) => Text(
                   lista.isEmpty ? 'Ejercicio' : lista.first.nombre,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                  style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Objetivo: $totalSeries series · '
-                '${widget.objetivo.repsMin}-${widget.objetivo.repsMax} reps · '
-                '${widget.objetivo.descansoSeg}s descanso',
-                style: Theme.of(context).textTheme.bodySmall,
+              const SizedBox(height: GeoLiftSpacing.md),
+              Wrap(
+                spacing: GeoLiftSpacing.sm,
+                runSpacing: GeoLiftSpacing.sm,
+                children: [
+                  _ChipObjetivo(
+                    icono: Icons.layers_outlined,
+                    texto: '$totalSeries series',
+                  ),
+                  _ChipObjetivo(
+                    icono: Icons.repeat_rounded,
+                    texto: '${widget.objetivo.repsMin}-'
+                        '${widget.objetivo.repsMax} reps',
+                  ),
+                  _ChipObjetivo(
+                    icono: Icons.timer_outlined,
+                    texto: '${widget.objetivo.descansoSeg}s',
+                  ),
+                ],
               ),
               if (nombreProximo != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  'Próximo ejercicio: $nombreProximo',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                const SizedBox(height: GeoLiftSpacing.md),
+                Row(
+                  children: [
+                    Icon(Icons.arrow_forward_rounded,
+                        size: 16, color: colorScheme.onSurfaceVariant),
+                    const SizedBox(width: GeoLiftSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Próximo ejercicio: $nombreProximo',
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
+                    ),
+                  ],
                 ),
               ],
               if (_historialPrevio.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: GeoLiftSpacing.lg),
                 CajaReferencia(
                   peso: _formatearPeso(_historialPrevio.first.registro.peso),
                   reps: _historialPrevio.first.registro.reps,
                 ),
               ],
-              const SizedBox(height: 22),
+              const SizedBox(height: GeoLiftSpacing.xl),
               Center(
                 child: Column(
                   children: [
@@ -414,68 +437,81 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  BotonStepper(
-                    icono: Icons.remove,
-                    tooltip: 'Restar peso',
-                    onPressed: sesionCompleta ? null : _decPeso,
-                  ),
-                  SizedBox(
-                    width: 150,
-                    child: Column(
-                      children: [
-                        Text(_formatearPeso(_peso),
-                            style: Theme.of(context).textTheme.displaySmall),
-                        Text('KG',
-                            style: Theme.of(context).textTheme.labelSmall),
-                      ],
-                    ),
-                  ),
-                  BotonStepper(
-                    icono: Icons.add,
-                    tooltip: 'Sumar peso',
-                    onPressed: sesionCompleta ? null : _incPeso,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: GeoLiftSpacing.lg),
+              // Peso y reps comparten la misma "consola": una tarjeta con el
+              // peso al centro en grande y las reps abajo, ambos con sus
+              // steppers −/+ a los lados.
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.all(GeoLiftSpacing.lg),
                 decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
+                  color: colorScheme.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
                   border: Border.all(color: colorScheme.outlineVariant),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
                   children: [
-                    Text('Reps',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: colorScheme.onSurfaceVariant)),
                     Row(
                       children: [
                         BotonStepper(
-                          icono: Icons.remove,
-                          tamano: 44,
-                          tooltip: 'Restar repeticiones',
-                          onPressed: sesionCompleta ? null : _decReps,
+                          icono: Icons.remove_rounded,
+                          tooltip: 'Restar peso',
+                          onPressed: sesionCompleta ? null : _decPeso,
                         ),
-                        SizedBox(
-                          width: 44,
-                          child: Text(
-                            '$_reps',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleLarge,
+                        Expanded(
+                          child: Column(
+                            children: [
+                              Text(_formatearPeso(_peso),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .displayMedium
+                                      ?.copyWith(height: 1.05)),
+                              Text('KG',
+                                  style:
+                                      Theme.of(context).textTheme.labelSmall),
+                            ],
                           ),
                         ),
                         BotonStepper(
-                          icono: Icons.add,
-                          tamano: 44,
+                          icono: Icons.add_rounded,
+                          tooltip: 'Sumar peso',
+                          onPressed: sesionCompleta ? null : _incPeso,
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding:
+                          EdgeInsets.symmetric(vertical: GeoLiftSpacing.lg),
+                      child: Divider(),
+                    ),
+                    Row(
+                      children: [
+                        BotonStepper(
+                          icono: Icons.remove_rounded,
+                          tamano: 48,
+                          tooltip: 'Restar repeticiones',
+                          onPressed: sesionCompleta ? null : _decReps,
+                        ),
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                            textBaseline: TextBaseline.alphabetic,
+                            children: [
+                              Text(
+                                '$_reps',
+                                style:
+                                    Theme.of(context).textTheme.headlineMedium,
+                              ),
+                              const SizedBox(width: GeoLiftSpacing.sm),
+                              Text('REPS',
+                                  style:
+                                      Theme.of(context).textTheme.labelSmall),
+                            ],
+                          ),
+                        ),
+                        BotonStepper(
+                          icono: Icons.add_rounded,
+                          tamano: 48,
                           tooltip: 'Sumar repeticiones',
                           onPressed: sesionCompleta ? null : _incReps,
                         ),
@@ -485,104 +521,78 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                 ),
               ),
               if (descansando) ...[
-                const SizedBox(height: 16),
-                Material(
-                  color: colorScheme.primary.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(10),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: _saltarDescanso,
+                const SizedBox(height: GeoLiftSpacing.lg),
+                _TarjetaDescanso(
+                  restantes: _segundosRestantes,
+                  total: widget.objetivo.descansoSeg,
+                  texto: _formatearTiempo(_segundosRestantes),
+                  onSaltar: _saltarDescanso,
+                ),
+              ],
+              const SizedBox(height: GeoLiftSpacing.xl),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: accionBoton,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(60),
+                      ),
+                      child: Text(textoBoton),
+                    ),
+                  ),
+                  // Aplazar no necesita palabras al lado del botón grande:
+                  // ⏭ + tooltip. Se oculta cuando ya no hay a quién saltarle.
+                  if (!sesionCompleta && widget.onAplazarEjercicio != null) ...[
+                    const SizedBox(width: GeoLiftSpacing.md),
+                    IconButton(
+                      onPressed: _aplazar,
+                      tooltip: 'No puedo ahora, saltar',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(60, 60),
+                        side: BorderSide(color: colorScheme.outlineVariant),
+                      ),
+                      icon: const Icon(Icons.skip_next_rounded),
+                    ),
+                  ],
+                ],
+              ),
+              if (_registrados.isNotEmpty) ...[
+                const SizedBox(height: GeoLiftSpacing.xxl),
+                const EncabezadoSeccion('Sets registrados'),
+                for (final r in _registrados)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: GeoLiftSpacing.sm),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                          horizontal: GeoLiftSpacing.lg,
+                          vertical: GeoLiftSpacing.md),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: colorScheme.primary.withValues(alpha: 0.5)),
+                        color: colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(GeoLiftRadius.md),
+                        border: Border.all(color: colorScheme.outlineVariant),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('DESCANSO',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(color: colorScheme.primary)),
-                              Text('Toca para saltar',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                          color: colorScheme.primary
-                                              .withValues(alpha: 0.7))),
-                            ],
+                          Icon(Icons.check_circle_rounded,
+                              size: 18, color: colorScheme.secondary),
+                          const SizedBox(width: GeoLiftSpacing.md),
+                          Expanded(
+                            child: Text('Serie ${r.numeroSet}',
+                                style: Theme.of(context).textTheme.bodyMedium),
                           ),
                           Text(
-                            _formatearTiempo(_segundosRestantes),
+                            '${_formatearPeso(r.peso)} kg × ${r.reps}',
                             style: Theme.of(context)
                                 .textTheme
-                                .headlineSmall
-                                ?.copyWith(color: colorScheme.primary),
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: colorScheme.onSurface,
+                                  fontWeight: FontWeight.w800,
+                                ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: accionBoton,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                  ),
-                  child: Text(textoBoton),
-                ),
-              ),
-              if (!sesionCompleta && widget.onAplazarEjercicio != null) ...[
-                const SizedBox(height: 8),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _aplazar,
-                    icon: const Icon(Icons.schedule, size: 18),
-                    label: const Text('No puedo ahora, saltar'),
-                  ),
-                ),
-              ],
-              if (_registrados.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Text('SETS REGISTRADOS',
-                    style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 8),
-                for (final r in _registrados)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.check_circle,
-                                size: 15, color: colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text('Serie ${r.numeroSet}',
-                                style: Theme.of(context).textTheme.bodyMedium),
-                          ],
-                        ),
-                        Text(
-                          '${_formatearPeso(r.peso)} kg × ${r.reps}',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                      ],
                     ),
                   ),
               ],
@@ -656,6 +666,115 @@ class _OverlayCelebracion extends StatelessWidget {
               const SizedBox(height: 20),
               Text('Toca para continuar',
                   style: Theme.of(context).textTheme.labelSmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un dato del objetivo del ejercicio (series, rango de reps, descanso)
+/// como chip con ícono, en vez de una sola línea larga de texto.
+class _ChipObjetivo extends StatelessWidget {
+  final IconData icono;
+  final String texto;
+  const _ChipObjetivo({required this.icono, required this.texto});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: GeoLiftSpacing.md, vertical: 6),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icono, size: 16, color: colorScheme.primary),
+          const SizedBox(width: 6),
+          Text(
+            texto,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Cuenta regresiva del descanso entre series, con una barra que se va
+/// vaciando. Tocarla termina el descanso antes de tiempo.
+class _TarjetaDescanso extends StatelessWidget {
+  final int restantes;
+  final int total;
+  final String texto;
+  final VoidCallback onSaltar;
+
+  const _TarjetaDescanso({
+    required this.restantes,
+    required this.total,
+    required this.texto,
+    required this.onSaltar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final fraccion = total <= 0 ? 0.0 : (restantes / total).clamp(0.0, 1.0);
+    return Material(
+      color: colorScheme.primary.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
+        onTap: onSaltar,
+        child: Padding(
+          padding: const EdgeInsets.all(GeoLiftSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.timer_outlined, color: colorScheme.primary),
+                  const SizedBox(width: GeoLiftSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('DESCANSO',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: colorScheme.primary)),
+                        Text('Toca para saltar',
+                            style: Theme.of(context).textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    texto,
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(color: colorScheme.primary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: GeoLiftSpacing.md),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+                child: LinearProgressIndicator(
+                  value: fraccion,
+                  minHeight: 6,
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.15),
+                ),
+              ),
             ],
           ),
         ),

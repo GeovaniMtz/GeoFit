@@ -33,11 +33,11 @@ void main() {
       var app = tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(app.themeMode, ThemeMode.system);
 
-      await tester.tap(find.text('Ajustes'));
+      await tester.tap(find.byTooltip('Ajustes'));
       await tester.pumpAndSettle();
-      expect(find.text('Apariencia'), findsOneWidget);
+      expect(find.text('APARIENCIA'), findsOneWidget);
 
-      await tester.tap(find.text('Claro'));
+      await tester.tap(find.byTooltip('Claro'));
       await tester.pumpAndSettle();
 
       app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -47,7 +47,7 @@ void main() {
           Brightness.light);
       expect((await db.obtenerConfiguracion()).tema, 'claro');
 
-      await tester.tap(find.text('Oscuro'));
+      await tester.tap(find.byTooltip('Oscuro'));
       await tester.pumpAndSettle();
 
       app = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -57,7 +57,7 @@ void main() {
           Brightness.dark);
       expect((await db.obtenerConfiguracion()).tema, 'oscuro');
 
-      await tester.tap(find.text('Sistema'));
+      await tester.tap(find.byTooltip('Sistema'));
       await tester.pumpAndSettle();
 
       app = tester.widget<MaterialApp>(find.byType(MaterialApp));

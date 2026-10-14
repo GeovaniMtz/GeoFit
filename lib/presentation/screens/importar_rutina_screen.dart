@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/theme.dart';
 import '../../domain/clasificador_ejercicio.dart';
 import '../../domain/importador_rutina.dart';
 import '../providers/providers.dart';
@@ -146,47 +147,50 @@ class _ImportarRutinaScreenState extends ConsumerState<ImportarRutinaScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Importar rutina')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
+            GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xxl),
         children: [
-          const Text(
-            'Escanea o pega tu rutina completa: un ejercicio por línea con '
-            'series y reps (p. ej. "Sentadilla 4x8-12"). Separa los días '
-            'con un encabezado como "Día 1: Pecho".',
-          ),
-          const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _escaneando
-                      ? null
-                      : () => _escanear(ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Cámara'),
+                child: Text(
+                  'Escanea o pega tu rutina completa: un ejercicio por línea '
+                  'con series y reps (p. ej. "Sentadilla 4x8-12"). Separa los '
+                  'días con un encabezado como "Día 1: Pecho".',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _escaneando
-                      ? null
-                      : () => _escanear(ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Galería'),
-                ),
+              const SizedBox(width: GeoLiftSpacing.md),
+              // Cámara y galería se entienden por su ícono; el nombre queda
+              // en el tooltip.
+              IconButton(
+                onPressed:
+                    _escaneando ? null : () => _escanear(ImageSource.camera),
+                tooltip: 'Escanear con la cámara',
+                icon: const Icon(Icons.photo_camera_outlined),
+              ),
+              const SizedBox(width: GeoLiftSpacing.sm),
+              IconButton(
+                onPressed:
+                    _escaneando ? null : () => _escanear(ImageSource.gallery),
+                tooltip: 'Elegir foto de la galería',
+                icon: const Icon(Icons.photo_library_outlined),
               ),
             ],
           ),
           if (_escaneando) ...[
-            const SizedBox(height: 8),
-            const LinearProgressIndicator(),
+            const SizedBox(height: GeoLiftSpacing.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+              child: const LinearProgressIndicator(minHeight: 4),
+            ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: GeoLiftSpacing.lg),
           TextField(
             controller: _controladorTexto,
             maxLines: 12,
             decoration: const InputDecoration(
-              border: OutlineInputBorder(),
               alignLabelWithHint: true,
               hintText: 'Día 1: Pecho\n'
                   'Press banca 4x8-12\n'
