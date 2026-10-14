@@ -356,6 +356,7 @@ void main() {
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.byTooltip('No puedo ahora, saltar'));
       await tester.tap(find.byTooltip('No puedo ahora, saltar'));
       await tester.pumpAndSettle();
 
