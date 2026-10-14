@@ -112,6 +112,7 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
   Widget build(BuildContext context) {
     if (_rutinaCompletada) {
       return RutinaCompletadaScreen(
+        sesionId: _sesionId!,
         onVolver: () => Navigator.of(context).pop(),
       );
     }
@@ -127,8 +128,7 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
             data: (ejercicios) => ejercicios.isEmpty
                 ? const SizedBox.shrink()
                 : Padding(
-                    padding:
-                        const EdgeInsets.only(right: GeoLiftSpacing.page),
+                    padding: const EdgeInsets.only(right: GeoLiftSpacing.page),
                     child: Center(
                       child: Text(
                         'Ejercicio ${_indiceEjercicio + 1} de '
@@ -210,9 +210,8 @@ class _EntrenarScreenState extends ConsumerState<EntrenarScreen> {
                             ? null
                             : () =>
                                 setState(() => _indiceEjercicio = indice + 1),
-                        onAplazarEjercicio: esUltimo
-                            ? null
-                            : () => _aplazarEjercicio(indice),
+                        onAplazarEjercicio:
+                            esUltimo ? null : () => _aplazarEjercicio(indice),
                         onRutinaCompletada: () =>
                             setState(() => _rutinaCompletada = true),
                       ),

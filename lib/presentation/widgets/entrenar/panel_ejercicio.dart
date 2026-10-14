@@ -48,8 +48,14 @@ class PanelEjercicio extends ConsumerStatefulWidget {
 class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     with TickerProviderStateMixin {
   int _numeroSet = 1;
+  // Siempre en kg (como se guarda); la unidad elegida solo cambia cómo se
+  // muestra y de cuánto en cuánto suben los botones −/+.
   double _peso = 20;
   int _reps = 8;
+
+  // Esfuerzo percibido (RPE 6–10) de la serie que se va a registrar.
+  // Opcional: null si el usuario no lo marca. Se limpia tras cada serie.
+  double? _rpe;
   bool _guardando = false;
   Timer? _timerDescanso;
   int _segundosRestantes = 0;
@@ -67,12 +73,15 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
   bool _historialCapturado = false;
   List<RegistroConFecha> _historialPrevio = const [];
 
-  final List<({int numeroSet, double peso, int reps})> _registrados = [];
+  final List<({int numeroSet, double peso, int reps, double? rpe})>
+      _registrados = [];
 
   @override
   void initState() {
     super.initState();
     _reps = widget.objetivo.repsMin;
+    final unidad = ref.read(unidadPesoProvider);
+    _peso = unidad.aKg(unidad.pesoInicial);
     _cargarSetsPrevios();
   }
 
@@ -92,6 +101,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
               numeroSet: s.numeroSet,
               peso: s.peso,
               reps: s.reps,
+              rpe: s.rpe,
             )));
       });
       // Se salió de "Entrenar" justo después de la última serie, antes de
@@ -154,13 +164,22 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     _historialCapturado = true;
     _historialPrevio = historial;
     if (historial.isNotEmpty) {
-      _peso = historial.first.registro.peso;
+      // Se redondea al medio más cercano en la unidad actual, por si el
+      // registro se hizo en la otra (60 kg → 132.5 lb, no 132.28).
+      final unidad = ref.read(unidadPesoProvider);
+      _peso =
+          unidad.aKg(unidad.desdeKgRedondeado(historial.first.registro.peso));
       _reps = historial.first.registro.reps;
     }
   }
 
-  void _incPeso() => setState(() => _peso += 2.5);
-  void _decPeso() => setState(() => _peso = math.max(0, _peso - 2.5));
+  double get _pasoKg {
+    final unidad = ref.read(unidadPesoProvider);
+    return unidad.aKg(unidad.paso);
+  }
+
+  void _incPeso() => setState(() => _peso += _pasoKg);
+  void _decPeso() => setState(() => _peso = math.max(0, _peso - _pasoKg));
   void _incReps() => setState(() => _reps = math.min(50, _reps + 1));
   void _decReps() => setState(() => _reps = math.max(1, _reps - 1));
 
@@ -257,7 +276,9 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
       peso: _peso,
       reps: _reps,
       esPr: Value(esPr),
+      rpe: Value(_rpe),
     ));
+    await db.actualizarDuracionSesion(widget.sesionId);
 
     // MainShell mantiene Historial y Rutinas vivos todo el tiempo (usa
     // IndexedStack), así que sin esto sus datos se quedan tal cual estaban
@@ -271,7 +292,9 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
 
     final esUltimaSerie = _numeroSet >= widget.objetivo.seriesObjetivo;
     setState(() {
-      _registrados.insert(0, (numeroSet: _numeroSet, peso: _peso, reps: _reps));
+      _registrados.insert(
+          0, (numeroSet: _numeroSet, peso: _peso, reps: _reps, rpe: _rpe));
+      _rpe = null;
       _numeroSet += 1;
       _guardando = false;
     });
@@ -290,11 +313,9 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
     }
   }
 
-  String _formatearPeso(double peso) {
-    return peso == peso.roundToDouble()
-        ? peso.toStringAsFixed(0)
-        : peso.toStringAsFixed(1);
-  }
+  /// Kilos guardados → texto en la unidad elegida por el usuario.
+  String _formatearPeso(double pesoKg) =>
+      ref.read(unidadPesoProvider).formatear(pesoKg);
 
   String _formatearTiempo(int segundos) {
     final m = segundos ~/ 60;
@@ -322,6 +343,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
         .watch(historialPorEjercicioProvider(widget.objetivo.ejercicioId))
         .whenData(_capturarHistorial);
 
+    final unidad = ref.watch(unidadPesoProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final totalSeries = widget.objetivo.seriesObjetivo;
     final sesionCompleta = _numeroSet > totalSeries;
@@ -404,6 +426,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                 const SizedBox(height: GeoLiftSpacing.lg),
                 CajaReferencia(
                   peso: _formatearPeso(_historialPrevio.first.registro.peso),
+                  unidad: unidad.name,
                   reps: _historialPrevio.first.registro.reps,
                 ),
               ],
@@ -465,7 +488,7 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                                       .textTheme
                                       .displayMedium
                                       ?.copyWith(height: 1.05)),
-                              Text('KG',
+                              Text(unidad.etiqueta,
                                   style:
                                       Theme.of(context).textTheme.labelSmall),
                             ],
@@ -516,6 +539,13 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                           onPressed: sesionCompleta ? null : _incReps,
                         ),
                       ],
+                    ),
+                    const SizedBox(height: GeoLiftSpacing.lg),
+                    _SelectorRpe(
+                      valor: _rpe,
+                      onCambio: sesionCompleta
+                          ? null
+                          : (valor) => setState(() => _rpe = valor),
                     ),
                   ],
                 ),
@@ -582,7 +612,8 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                                 style: Theme.of(context).textTheme.bodyMedium),
                           ),
                           Text(
-                            '${_formatearPeso(r.peso)} kg × ${r.reps}',
+                            '${_formatearPeso(r.peso)} ${unidad.name} × ${r.reps}'
+                            '${r.rpe == null ? '' : '  @${r.rpe!.toStringAsFixed(0)}'}',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
@@ -779,6 +810,76 @@ class _TarjetaDescanso extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Esfuerzo percibido (RPE) de la serie: 6 = muy fácil … 10 = al fallo.
+/// Es opcional — tocar el valor ya marcado lo desmarca.
+class _SelectorRpe extends StatelessWidget {
+  final double? valor;
+  final ValueChanged<double?>? onCambio;
+  const _SelectorRpe({required this.valor, required this.onCambio});
+
+  static const _valores = [6.0, 7.0, 8.0, 9.0, 10.0];
+
+  // Misma posición que en [_valores].
+  static const _descripciones = [
+    'RPE 6: podías hacer 4 o más reps extra',
+    'RPE 7: te quedaban unas 3 reps',
+    'RPE 8: te quedaban unas 2 reps',
+    'RPE 9: te quedaba 1 rep',
+    'RPE 10: al fallo, no salía otra',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Tooltip(
+          message: 'Esfuerzo percibido (opcional)',
+          child: Text('RPE', style: Theme.of(context).textTheme.labelSmall),
+        ),
+        const SizedBox(width: GeoLiftSpacing.md),
+        for (var i = 0; i < _valores.length; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              child: Tooltip(
+                message: _descripciones[i],
+                child: Material(
+                  color: valor == _valores[i]
+                      ? colorScheme.primary
+                      : colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+                    onTap: onCambio == null
+                        ? null
+                        : () => onCambio!(
+                            valor == _valores[i] ? null : _valores[i]),
+                    child: SizedBox(
+                      height: 36,
+                      child: Center(
+                        child: Text(
+                          _valores[i].toStringAsFixed(0),
+                          style: TextStyle(
+                            fontFamily: 'Manrope',
+                            fontWeight: FontWeight.w800,
+                            color: valor == _valores[i]
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

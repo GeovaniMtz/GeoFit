@@ -20,6 +20,7 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
   int? _ejercicioSeleccionado;
 
   Future<void> _registrarPesoCorporal(BuildContext context) async {
+    final unidad = ref.read(unidadPesoProvider);
     final controlador = TextEditingController();
     final peso = await showDialog<double>(
       context: context,
@@ -29,7 +30,7 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
           controller: controlador,
           autofocus: true,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'kg'),
+          decoration: InputDecoration(labelText: unidad.name),
         ),
         actions: [
           TextButton(
@@ -48,7 +49,8 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
     );
 
     if (peso == null) return;
-    await ref.read(databaseProvider).registrarPesoCorporal(peso);
+    // Se captura en la unidad elegida pero siempre se guarda en kg.
+    await ref.read(databaseProvider).registrarPesoCorporal(unidad.aKg(peso));
     ref.invalidate(historialPesoCorporalProvider);
   }
 
@@ -137,6 +139,7 @@ class _GraficaE1rm extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final historial = ref.watch(historialPorEjercicioProvider(ejercicioId));
     final servicio = ref.watch(progresionServiceProvider);
+    final unidad = ref.watch(unidadPesoProvider);
 
     return historial.when(
       loading: () => const SizedBox(
@@ -155,15 +158,16 @@ class _GraficaE1rm extends ConsumerWidget {
         final ordenados = registros.reversed.toList();
         final mejorPr = registros
             .where((r) => r.registro.esPr)
-            .map((r) => servicio.e1rm(r.registro.peso, r.registro.reps))
+            .map((r) =>
+                unidad.desdeKg(servicio.e1rm(r.registro.peso, r.registro.reps)))
             .fold<double?>(null, (max, v) => max == null || v > max ? v : max);
 
         final puntos = <FlSpot>[
           for (var i = 0; i < ordenados.length; i++)
             FlSpot(
                 i.toDouble(),
-                servicio.e1rm(
-                    ordenados[i].registro.peso, ordenados[i].registro.reps)),
+                unidad.desdeKg(servicio.e1rm(
+                    ordenados[i].registro.peso, ordenados[i].registro.reps))),
         ];
 
         final gridColor = Theme.of(context).colorScheme.outlineVariant;
@@ -180,7 +184,7 @@ class _GraficaE1rm extends ConsumerWidget {
                   children: [
                     const TextSpan(text: 'Mejor marca: '),
                     TextSpan(
-                      text: '${mejorPr.toStringAsFixed(1)} kg e1RM',
+                      text: '${mejorPr.toStringAsFixed(1)} ${unidad.name} e1RM',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w800,
@@ -262,6 +266,7 @@ class _GraficaPesoCorporal extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historial = ref.watch(historialPesoCorporalProvider);
+    final unidad = ref.watch(unidadPesoProvider);
 
     return historial.when(
       loading: () => const SizedBox(
@@ -275,7 +280,7 @@ class _GraficaPesoCorporal extends ConsumerWidget {
         }
         final puntos = <FlSpot>[
           for (var i = 0; i < registros.length; i++)
-            FlSpot(i.toDouble(), registros[i].peso),
+            FlSpot(i.toDouble(), unidad.desdeKg(registros[i].peso)),
         ];
         return SizedBox(
           height: 180,

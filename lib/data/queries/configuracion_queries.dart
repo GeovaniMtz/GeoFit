@@ -7,8 +7,7 @@ extension ConfiguracionQueries on AppDatabase {
   Future<ConfiguracionData> obtenerConfiguracion() async {
     final existente = await select(configuracion).getSingleOrNull();
     if (existente != null) return existente;
-    final id =
-        await into(configuracion).insert(const ConfiguracionCompanion());
+    final id = await into(configuracion).insert(const ConfiguracionCompanion());
     return (await (select(configuracion)..where((c) => c.id.equals(id)))
         .getSingle());
   }
@@ -18,5 +17,12 @@ extension ConfiguracionQueries on AppDatabase {
     final config = await obtenerConfiguracion();
     await (update(configuracion)..where((c) => c.id.equals(config.id)))
         .write(ConfiguracionCompanion(tema: Value(tema)));
+  }
+
+  /// Guarda la unidad de peso elegida ('kg' | 'lb').
+  Future<void> actualizarUnidadPeso(String unidad) async {
+    final config = await obtenerConfiguracion();
+    await (update(configuracion)..where((c) => c.id.equals(config.id)))
+        .write(ConfiguracionCompanion(unidadPeso: Value(unidad)));
   }
 }

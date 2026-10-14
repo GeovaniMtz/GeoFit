@@ -37,6 +37,34 @@ extension SesionesQueries on AppDatabase {
   Future<int> registrarSet(RegistrosSetCompanion datos) =>
       into(registrosSet).insert(datos);
 
+  Future<SesionesEntrenamientoData> obtenerSesion(int sesionId) =>
+      (select(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+          .getSingle();
+
+  /// Guarda como duración de la sesión el tiempo transcurrido desde que se
+  /// empezó hasta [hasta] (por defecto, ahora). Se llama tras cada serie, así
+  /// que una sesión que se deja a medias conserva la duración hasta su
+  /// última serie registrada en vez de quedarse sin dato.
+  Future<void> actualizarDuracionSesion(int sesionId, {DateTime? hasta}) async {
+    final sesion = await obtenerSesion(sesionId);
+    final fin = hasta ?? DateTime.now();
+    final segundos = fin.difference(sesion.fecha).inSeconds;
+    await (update(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+        .write(SesionesEntrenamientoCompanion(
+      duracionSeg: Value(segundos < 0 ? 0 : segundos),
+    ));
+  }
+
+  /// Guarda (o borra, si viene vacía) la nota libre de la sesión — p. ej.
+  /// "me dolió el hombro en el press".
+  Future<void> guardarNotasSesion(int sesionId, String? notas) {
+    final limpia = notas?.trim();
+    return (update(sesionesEntrenamiento)..where((s) => s.id.equals(sesionId)))
+        .write(SesionesEntrenamientoCompanion(
+      notas: Value(limpia == null || limpia.isEmpty ? null : limpia),
+    ));
+  }
+
   /// Todos los sets ya registrados en [sesionId], de cualquier ejercicio —
   /// para saber en qué ejercicio y serie retomar al reabrir la sesión.
   Future<List<RegistrosSetData>> setsDeSesion(int sesionId) =>

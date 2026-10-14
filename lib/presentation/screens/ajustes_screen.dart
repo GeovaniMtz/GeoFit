@@ -11,6 +11,7 @@ class AjustesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tema = ref.watch(temaControllerProvider);
+    final unidad = ref.watch(unidadPesoProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ajustes')),
@@ -56,6 +57,45 @@ class AjustesScreen extends ConsumerWidget {
                       ref
                           .read(temaControllerProvider.notifier)
                           .cambiarTema(seleccion.first);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: GeoLiftSpacing.xxl),
+          const EncabezadoSeccion('Unidad de peso'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(GeoLiftSpacing.page),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Cambia cómo se muestran y capturan los pesos. Tu '
+                    'historial no se modifica.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: GeoLiftSpacing.lg),
+                  SegmentedButton<UnidadPeso>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(
+                        value: UnidadPeso.kg,
+                        tooltip: 'Kilogramos',
+                        label: Text('KG'),
+                      ),
+                      ButtonSegment(
+                        value: UnidadPeso.lb,
+                        tooltip: 'Libras',
+                        label: Text('LB'),
+                      ),
+                    ],
+                    selected: {unidad},
+                    onSelectionChanged: (seleccion) {
+                      ref
+                          .read(unidadPesoProvider.notifier)
+                          .cambiarUnidad(seleccion.first);
                     },
                   ),
                 ],

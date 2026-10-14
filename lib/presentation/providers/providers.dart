@@ -5,6 +5,9 @@ import '../../core/escaner_rutina_service.dart';
 import '../../core/notification_service.dart';
 import '../../data/database.dart';
 import '../../domain/progresion_service.dart';
+import '../../domain/unidad_peso.dart';
+
+export '../../domain/unidad_peso.dart';
 
 /// Base de datos local, viva durante toda la vida de la app.
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -132,4 +135,37 @@ class TemaController extends StateNotifier<TemaApp> {
 final temaControllerProvider =
     StateNotifierProvider<TemaController, TemaApp>((ref) {
   return TemaController(ref.watch(databaseProvider));
+});
+
+/// Controla y persiste la unidad de peso en `Configuracion.unidadPeso`.
+/// Solo afecta cómo se muestran y capturan los pesos — lo guardado siempre
+/// está en kg (ver [UnidadPeso]).
+class UnidadPesoController extends StateNotifier<UnidadPeso> {
+  UnidadPesoController(this._db) : super(UnidadPeso.kg) {
+    _cargar();
+  }
+
+  final AppDatabase _db;
+
+  // Si el usuario elige una unidad antes de que termine la carga inicial,
+  // esa lectura (ya vieja) no debe pisar su elección.
+  bool _elegidaPorUsuario = false;
+
+  Future<void> _cargar() async {
+    final config = await _db.obtenerConfiguracion();
+    if (mounted && !_elegidaPorUsuario) {
+      state = UnidadPeso.desdeTexto(config.unidadPeso);
+    }
+  }
+
+  Future<void> cambiarUnidad(UnidadPeso unidad) async {
+    _elegidaPorUsuario = true;
+    state = unidad;
+    await _db.actualizarUnidadPeso(unidad.texto);
+  }
+}
+
+final unidadPesoProvider =
+    StateNotifierProvider<UnidadPesoController, UnidadPeso>((ref) {
+  return UnidadPesoController(ref.watch(databaseProvider));
 });

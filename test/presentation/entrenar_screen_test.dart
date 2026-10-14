@@ -384,6 +384,9 @@ void main() {
       // Es el último de la cola: ya no hay a quién saltarle.
       expect(find.byTooltip('No puedo ahora, saltar'), findsNothing);
 
+      // Con la caja de "sesión anterior" el botón queda bajo el pliegue de
+      // la pantalla de prueba (800×600).
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 

@@ -7,7 +7,15 @@ import '../../../core/theme.dart';
 class CajaReferencia extends StatelessWidget {
   final String peso;
   final int reps;
-  const CajaReferencia({super.key, required this.peso, required this.reps});
+
+  /// Unidad ya elegida por el usuario ("kg" / "lb"), para la etiqueta.
+  final String unidad;
+  const CajaReferencia({
+    super.key,
+    required this.peso,
+    required this.reps,
+    this.unidad = 'kg',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +39,7 @@ class CajaReferencia extends StatelessWidget {
                 children: [
                   const TextSpan(text: 'Sesión anterior: '),
                   TextSpan(
-                    text: '$peso kg × $reps',
+                    text: '$peso $unidad × $reps',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const TextSpan(text: ' reps'),
