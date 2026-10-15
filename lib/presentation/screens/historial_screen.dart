@@ -168,7 +168,6 @@ class HistorialScreen extends ConsumerWidget {
     await ref
         .read(databaseProvider)
         .guardarNotasSesion(resumen.sesion.id, nuevas);
-    ref.invalidate(historialDeSesionesProvider);
   }
 
   String _capitalizar(String texto) {

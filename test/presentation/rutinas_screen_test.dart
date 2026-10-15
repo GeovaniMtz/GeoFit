@@ -36,10 +36,9 @@ void main() {
       // Sin historial, toca el primer día configurado.
       expect(find.text('Toca: Empuje'), findsOneWidget);
 
-      // Se registra una sesión del día "Empuje" y se invalida el provider
-      // para que la pantalla refleje el nuevo historial.
+      // Se registra una sesión del día "Empuje": la pantalla debe reflejarlo
+      // sola, sin invalidar nada (los providers son reactivos).
       await db.iniciarSesion(diaEmpujeId);
-      container.invalidate(ultimoDiaEntrenadoProvider(rutinaId));
       await tester.pumpAndSettle();
 
       // Ahora debe tocarle el siguiente en la rotación.

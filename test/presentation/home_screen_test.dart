@@ -56,13 +56,14 @@ void main() {
       final etiquetaSiguiente = tester.getTopLeft(find.text('SIGUIENTE'));
       expect(etiquetaSiguiente.dy, closeTo(filaEmpuje.dy, 30));
 
+      // Sin invalidar nada: los providers son reactivos.
       await db.iniciarSesion(diaEmpujeId);
-      container.invalidate(ultimoDiaEntrenadoProvider(rutinaId));
       await tester.pumpAndSettle();
 
       // Tras entrenar Empuje, "SIGUIENTE" rota a la fila de Tirón.
       final filaTiron = tester.getTopLeft(find.text('Tirón'));
-      final etiquetaSiguienteDespues = tester.getTopLeft(find.text('SIGUIENTE'));
+      final etiquetaSiguienteDespues =
+          tester.getTopLeft(find.text('SIGUIENTE'));
       expect(etiquetaSiguienteDespues.dy, closeTo(filaTiron.dy, 30));
     },
   );

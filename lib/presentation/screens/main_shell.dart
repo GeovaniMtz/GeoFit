@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../providers/providers.dart';
 
 import 'ajustes_screen.dart';
 import 'historial_screen.dart';
@@ -9,14 +14,14 @@ import 'rutinas_screen.dart';
 /// Cascarón con navegación inferior entre las 5 secciones principales.
 /// Los sub-flujos (crear rutina, entrenar, editar) se navegan con go_router
 /// por encima de este shell.
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell>
+class _MainShellState extends ConsumerState<MainShell>
     with SingleTickerProviderStateMixin {
   int _indice = 0;
 
@@ -44,6 +49,26 @@ class _MainShellState extends State<MainShell>
     AjustesScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    // Tras el primer cuadro, para no competir con las consultas de Inicio.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => unawaited(_respaldoAutomatico()));
+  }
+
+  /// Crea el respaldo semanal si ya toca. Nunca debe tumbar la app: si
+  /// falla (sin espacio, sin permiso…) se intenta la próxima vez que se abra.
+  Future<void> _respaldoAutomatico() async {
+    try {
+      final auto = await ref.read(respaldoAutomaticoProvider.future);
+      final creado = await auto.respaldarSiToca(ref.read(databaseProvider));
+      if (creado != null && mounted) {
+        ref.invalidate(estadoRespaldoAutomaticoProvider);
+      }
+    } catch (_) {}
+  }
+
   Future<void> _irAPantalla(int i) async {
     if (i == _indice) return;
     await _controladorFade.reverse();
@@ -70,9 +95,7 @@ class _MainShellState extends State<MainShell>
           index: _indice,
           children: [
             for (var i = 0; i < _pantallas.length; i++)
-              _visitadas.contains(i)
-                  ? _pantallas[i]
-                  : const SizedBox.shrink(),
+              _visitadas.contains(i) ? _pantallas[i] : const SizedBox.shrink(),
           ],
         ),
       ),

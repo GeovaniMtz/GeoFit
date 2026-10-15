@@ -1,0 +1,43 @@
+name: CI
+
+# Corre el análisis estático y todos los tests en cada PR y en cada push a
+# develop/main, para que nada se una sin pasar los tests.
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+# Si llega un push nuevo al mismo PR, se cancela la corrida anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-y-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Misma versión con la que se desarrolla localmente.
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Dependencias
+        run: flutter pub get
+
+      # database.g.dart está versionado: si alguien cambia las tablas y
+      # olvida regenerarlo, este paso lo detecta.
+      - name: Código generado de Drift al día
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code -- lib/data/database.g.dart
+
+      - name: Análisis estático
+        run: flutter analyze lib test
+
+      - name: Tests
+        run: flutter test

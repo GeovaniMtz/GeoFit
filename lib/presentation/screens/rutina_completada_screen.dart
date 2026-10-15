@@ -32,18 +32,12 @@ class _RutinaCompletadaScreenState
   late final String _frase = fraseMotivacionalAleatoria();
   final _controladorNotas = TextEditingController();
   late final AppDatabase _db = ref.read(databaseProvider);
-
-  // Riverpod no permite usar `ref` dentro de dispose(): se guarda el
-  // contenedor desde antes para refrescar Historial al salir.
-  late final ProviderContainer _contenedor =
-      ProviderScope.containerOf(context, listen: false);
   int? _duracionSeg;
 
   @override
   void initState() {
     super.initState();
     HapticFeedback.heavyImpact();
-    _contenedor; // se resuelve aquí, mientras `context` sigue montado
     _cargarSesion();
   }
 
@@ -64,10 +58,7 @@ class _RutinaCompletadaScreenState
   void dispose() {
     // Se guarda también al salir por el botón de regresar del sistema, no
     // solo con "VOLVER AL INICIO". No se espera: dispose() no es async.
-    final contenedor = _contenedor;
-    _db
-        .guardarNotasSesion(widget.sesionId, _controladorNotas.text)
-        .then((_) => contenedor.invalidate(historialDeSesionesProvider));
+    _db.guardarNotasSesion(widget.sesionId, _controladorNotas.text);
     _controladorNotas.dispose();
     super.dispose();
   }
