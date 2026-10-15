@@ -140,6 +140,21 @@ final historialDeSesionesProvider = StreamProvider<List<SesionResumen>>((ref) {
   );
 });
 
+final detalleSesionProvider =
+    StreamProvider.family<DetalleSesion?, int>((ref, sesionId) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [
+      db.sesionesEntrenamiento,
+      db.rutinaDias,
+      db.registrosSet,
+      db.rutinaEjercicios,
+      db.ejercicios,
+    ],
+    () => db.detalleDeSesion(sesionId),
+  );
+});
+
 final historialPesoCorporalProvider =
     StreamProvider<List<RegistrosPesoCorporalData>>((ref) {
   final db = ref.watch(databaseProvider);
