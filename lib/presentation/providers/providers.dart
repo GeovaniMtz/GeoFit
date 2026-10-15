@@ -6,6 +6,7 @@ import '../../core/notification_service.dart';
 import '../../core/respaldo_automatico.dart';
 import '../../core/respaldo_service.dart';
 import '../../data/database.dart';
+import '../../data/repositories/entrenamiento_repository.dart';
 import '../../domain/progresion_service.dart';
 import '../../domain/unidad_peso.dart';
 
@@ -36,6 +37,11 @@ final escanerRutinaServiceProvider = Provider<EscanerRutinaService>((ref) {
   final servicio = EscanerRutinaService();
   ref.onDispose(servicio.cerrar);
   return servicio;
+});
+
+final entrenamientoRepositoryProvider =
+    Provider<EntrenamientoRepository>((ref) {
+  return EntrenamientoRepository(ref.watch(databaseProvider));
 });
 
 final respaldoServiceProvider = Provider<RespaldoService>((ref) {
