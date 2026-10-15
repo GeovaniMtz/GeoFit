@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import 'database.steps.dart';
 import 'tables.dart';
 
 export 'tables.dart';
@@ -30,7 +31,9 @@ part 'database.g.dart';
   Configuracion,
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  /// Sin argumento abre el archivo real del teléfono. Los tests de
+  /// migración le pasan una conexión a una base con un esquema viejo.
+  AppDatabase([QueryExecutor? conexion]) : super(conexion ?? _openConnection());
 
   /// Permite inyectar un [QueryExecutor] (p. ej. una base en memoria) desde
   /// los tests, sin tocar el archivo sqlite real.
@@ -61,11 +64,16 @@ class AppDatabase extends _$AppDatabase {
           ));
           await into(configuracion).insert(const ConfiguracionCompanion());
         },
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(configuracion, configuracion.tema);
-          }
-        },
+        // Una función por cada salto de versión, con el esquema EXACTO de esa
+        // versión (generado en database.steps.dart por
+        // `dart run drift_dev make-migrations`). Al subir schemaVersion: correr
+        // ese comando, agregar aquí el `fromNToN+1` y llenar su test de datos
+        // en test/drift/geolift/migration_test.dart.
+        onUpgrade: stepByStep(
+          from1To2: (m, schema) async {
+            await m.addColumn(schema.configuracion, schema.configuracion.tema);
+          },
+        ),
       );
 }
 

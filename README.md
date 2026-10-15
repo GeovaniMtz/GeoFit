@@ -129,6 +129,23 @@ Necesitas Flutter instalado con acceso normal a internet.
    paquetes en el mismo disco que el proyecto y fuera de `AppData`, p. ej.
    `PUB_CACHE=C:\src\pub-cache`.
 
+## Cambiar el esquema de la base
+
+La base vive en el teléfono de cada usuario: un cambio de tablas mal migrado
+borra o corrompe sus datos. Para cualquier cambio en `lib/data/tables.dart`:
+
+1. Sube `schemaVersion` en `lib/data/database.dart`.
+2. Corre `dart run drift_dev make-migrations`: guarda el esquema nuevo en
+   `drift_schemas/`, regenera `lib/data/database.steps.dart` y las clases de
+   cada versión en `test/drift/geolift/generated/`.
+3. Agrega el paso `fromNToN+1` en `onUpgrade: stepByStep(...)`.
+4. Agrega un test de datos para ese salto en
+   `test/drift/geolift/migration_test.dart` (ver el de v1 → v2).
+
+El CI falla si las tablas cambiaron sin guardar el esquema, y los tests de
+migración fallan si una migración no deja la base igual que una recién
+creada o pierde datos.
+
 ## Próximos pasos sugeridos
 
 1. Respaldo y restauración de la base (exportar a un archivo para
