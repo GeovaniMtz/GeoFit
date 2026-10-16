@@ -20,9 +20,10 @@ class DetalleSesionScreen extends ConsumerWidget {
     final detalle = ref.watch(detalleSesionProvider(sesionId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(detalle.valueOrNull?.nombreDia ?? 'Sesión'),
-      ),
+      // Sin título arriba: los nombres de día suelen ser largos ("Miércoles –
+      // Brazo + Hombro A (en la mañana)") y ahí se cortaban; van en el
+      // cuerpo, donde caben en dos líneas.
+      appBar: AppBar(),
       body: detalle.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => EstadoError(
@@ -79,6 +80,13 @@ class _Resumen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          detalle.nombreDia,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 2),
         Text(
           fecha[0].toUpperCase() + fecha.substring(1),
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
