@@ -352,6 +352,8 @@ class _TarjetaSiguiente extends ConsumerWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(siguiente.nombreDia,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: textTheme.headlineSmall),
                         Text(
                           ejercicios == null
@@ -377,12 +379,19 @@ class _TarjetaSiguiente extends ConsumerWidget {
               ),
               if (otros.isNotEmpty) ...[
                 const SizedBox(height: GeoLiftSpacing.md),
-                Wrap(
-                  spacing: GeoLiftSpacing.sm,
-                  runSpacing: GeoLiftSpacing.sm,
-                  children: [
-                    for (final dia in otros)
-                      Tooltip(
+                // Una sola fila que se desliza: con muchos días, o con
+                // nombres largos ("Martes – Pierna completa (en la tarde)"),
+                // no ocupa media pantalla ni se desborda.
+                SizedBox(
+                  height: 40,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: otros.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(width: GeoLiftSpacing.sm),
+                    itemBuilder: (context, i) {
+                      final dia = otros[i];
+                      return Tooltip(
                         message: 'Entrenar ${dia.nombreDia}',
                         child: Material(
                           color: colorScheme.surfaceContainerHigh,
@@ -390,26 +399,37 @@ class _TarjetaSiguiente extends ConsumerWidget {
                           child: InkWell(
                             customBorder: const StadiumBorder(),
                             onTap: () => _entrenar(context, dia),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 14, 8),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.play_arrow_rounded,
-                                      size: 18,
-                                      color: colorScheme.onSurfaceVariant),
-                                  const SizedBox(width: 4),
-                                  Text(dia.nombreDia,
-                                      style: textTheme.bodyMedium?.copyWith(
-                                          color: colorScheme.onSurface,
-                                          fontWeight: FontWeight.w700)),
-                                ],
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 220),
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(10, 0, 14, 0),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.play_arrow_rounded,
+                                        size: 18,
+                                        color: colorScheme.onSurfaceVariant),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        dia.nombreDia,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: textTheme.bodyMedium?.copyWith(
+                                            color: colorScheme.onSurface,
+                                            fontWeight: FontWeight.w700),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                      );
+                    },
+                  ),
                 ),
               ],
             ],
