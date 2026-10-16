@@ -103,7 +103,6 @@ void main() {
       expect(find.text('60 kg × 8'), findsOneWidget);
       expect(find.text('RPE 8'), findsOneWidget);
       expect(find.byTooltip('Récord personal'), findsOneWidget);
-      expect(find.text('100 kg × 5'), findsOneWidget);
       expect(find.text('Sin notas'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Agregar notas'));
@@ -115,6 +114,10 @@ void main() {
       // Sin refrescar a mano: el provider es reactivo.
       expect(find.text('Rodilla bien'), findsOneWidget);
       expect(find.byTooltip('Editar notas'), findsOneWidget);
+
+      // La segunda tarjeta queda más abajo: la lista solo dibuja lo visible.
+      await tester.scrollUntilVisible(find.text('100 kg × 5'), 200);
+      expect(find.text('100 kg × 5'), findsOneWidget);
     },
   );
 }
