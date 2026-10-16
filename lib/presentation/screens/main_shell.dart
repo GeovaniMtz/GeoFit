@@ -138,9 +138,11 @@ class _MainShellState extends ConsumerState<MainShell>
   }
 }
 
-/// Barra de navegación en forma de píldora que flota sobre el contenido:
-/// la sección activa muestra ícono y nombre; las demás solo el ícono (su
-/// nombre queda en el tooltip y para lectores de pantalla).
+/// Barra de navegación en forma de píldora que flota sobre el contenido.
+/// Cada sección ocupa SIEMPRE el mismo lugar (todas del mismo ancho): si la
+/// activa se ensanchara para mostrar su nombre, los demás íconos se
+/// moverían y el pulgar fallaría. La activa se distingue por su fondo, el
+/// color y su nombre debajo; el resto, solo ícono (nombre en el tooltip).
 class _BarraFlotante extends StatelessWidget {
   final List<({IconData icono, String etiqueta})> secciones;
   final int indice;
@@ -156,7 +158,8 @@ class _BarraFlotante extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.96),
+      // Opaca: semitransparente se alcanzaba a leer el texto de abajo.
+      color: colorScheme.surfaceContainerHigh,
       shape: const StadiumBorder(),
       elevation: 12,
       shadowColor: Colors.black.withValues(alpha: 0.6),
@@ -210,23 +213,22 @@ class _ItemBarra extends StatelessWidget {
           child: InkWell(
             customBorder: const StadiumBorder(),
             onTap: onTap,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              height: 52,
-              padding: EdgeInsets.symmetric(horizontal: activo ? 16 : 14),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+            child: SizedBox(
+              width: 64,
+              height: 56,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(icono, color: color, size: 24),
                   if (activo) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(height: 2),
                     Text(
                       etiqueta,
+                      maxLines: 1,
                       style: TextStyle(
                         fontFamily: 'Manrope',
                         fontWeight: FontWeight.w800,
-                        fontSize: 14,
+                        fontSize: 11,
                         color: color,
                       ),
                     ),
