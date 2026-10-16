@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/theme.dart';
-import '../../data/database.dart';
 import '../providers/providers.dart';
 import 'rutina_completada_screen.dart' show formatearDuracion;
 import '../widgets/comunes.dart';
@@ -49,7 +49,7 @@ class HistorialScreen extends ConsumerWidget {
                   ' · ${formatoHora.format(fecha)}';
               return Card(
                 child: InkWell(
-                  onTap: () => _editarNotas(context, ref, resumen),
+                  onTap: () => context.push('/historial/${resumen.sesion.id}'),
                   child: Padding(
                     padding: const EdgeInsets.all(GeoLiftSpacing.md),
                     child: Row(
@@ -130,44 +130,6 @@ class HistorialScreen extends ConsumerWidget {
         },
       ),
     );
-  }
-
-  /// Agrega o corrige la nota de una sesión pasada desde Historial — para
-  /// cuando no se escribió al terminar, o la sesión quedó a medias y nunca
-  /// llegó a la pantalla de "rutina completada".
-  Future<void> _editarNotas(
-      BuildContext context, WidgetRef ref, SesionResumen resumen) async {
-    final controlador = TextEditingController(text: resumen.sesion.notas);
-    final nuevas = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Notas · ${resumen.nombreDia}'),
-        content: TextField(
-          controller: controlador,
-          autofocus: true,
-          minLines: 2,
-          maxLines: 5,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: 'p. ej. me molestó el hombro en el press',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controlador.text),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-    if (nuevas == null) return;
-    await ref
-        .read(databaseProvider)
-        .guardarNotasSesion(resumen.sesion.id, nuevas);
   }
 
   String _capitalizar(String texto) {

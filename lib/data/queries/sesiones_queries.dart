@@ -107,6 +107,57 @@ extension SesionesQueries on AppDatabase {
         .toList();
   }
 
+  /// Todo lo de una sesión para la pantalla de detalle: el día entrenado y
+  /// cada ejercicio con sus series, en el orden en que se ENTRENARON (por
+  /// el primer set de cada uno — si se aplazó un ejercicio, aparece donde
+  /// de verdad se hizo, no donde estaba en la rutina). Null si la sesión ya
+  /// no existe.
+  Future<DetalleSesion?> detalleDeSesion(int sesionId) async {
+    final cabecera = await (select(sesionesEntrenamiento).join([
+      innerJoin(rutinaDias,
+          rutinaDias.id.equalsExp(sesionesEntrenamiento.rutinaDiaId)),
+    ])
+          ..where(sesionesEntrenamiento.id.equals(sesionId)))
+        .getSingleOrNull();
+    if (cabecera == null) return null;
+
+    final filas = await (select(registrosSet).join([
+      innerJoin(rutinaEjercicios,
+          rutinaEjercicios.id.equalsExp(registrosSet.rutinaEjercicioId)),
+      innerJoin(
+          ejercicios, ejercicios.id.equalsExp(rutinaEjercicios.ejercicioId)),
+    ])
+          ..where(registrosSet.sesionId.equals(sesionId))
+          ..orderBy([OrderingTerm.asc(registrosSet.id)]))
+        .get();
+
+    // Map conserva el orden de inserción: el del primer set de cada uno.
+    final porEjercicio = <int, EjercicioDeSesion>{};
+    for (final f in filas) {
+      final re = f.readTable(rutinaEjercicios);
+      porEjercicio
+          .putIfAbsent(
+            re.id,
+            () => EjercicioDeSesion(
+              ejercicioId: re.ejercicioId,
+              nombre: f.readTable(ejercicios).nombre,
+              series: [],
+            ),
+          )
+          .series
+          .add(f.readTable(registrosSet));
+    }
+    for (final e in porEjercicio.values) {
+      e.series.sort((a, b) => a.numeroSet.compareTo(b.numeroSet));
+    }
+
+    return DetalleSesion(
+      sesion: cabecera.readTable(sesionesEntrenamiento),
+      nombreDia: cabecera.readTable(rutinaDias).nombreDia,
+      ejercicios: porEjercicio.values.toList(),
+    );
+  }
+
   /// Sesiones pasadas con el nombre del día entrenado y un resumen (sets y
   /// volumen total) para que Historial no necesite un query por sesión.
   Future<List<SesionResumen>> historialDeSesiones() async {
@@ -167,4 +218,45 @@ class SesionResumen {
     required this.totalSets,
     required this.volumenTotal,
   });
+}
+
+/// Una sesión con sus ejercicios y series, para la pantalla de detalle.
+class DetalleSesion {
+  final SesionesEntrenamientoData sesion;
+  final String nombreDia;
+
+  /// En el orden en que se entrenaron.
+  final List<EjercicioDeSesion> ejercicios;
+
+  const DetalleSesion({
+    required this.sesion,
+    required this.nombreDia,
+    required this.ejercicios,
+  });
+
+  int get totalSeries =>
+      ejercicios.fold(0, (total, e) => total + e.series.length);
+
+  /// Σ peso × reps de todas las series, en kg.
+  double get volumenKg =>
+      ejercicios.fold(0.0, (total, e) => total + e.volumenKg);
+
+  int get totalPrs => ejercicios.fold(
+      0, (total, e) => total + e.series.where((s) => s.esPr).length);
+}
+
+/// Un ejercicio dentro de una sesión, con sus series en orden.
+class EjercicioDeSesion {
+  final int ejercicioId;
+  final String nombre;
+  final List<RegistrosSetData> series;
+
+  const EjercicioDeSesion({
+    required this.ejercicioId,
+    required this.nombre,
+    required this.series,
+  });
+
+  double get volumenKg =>
+      series.fold(0.0, (total, s) => total + s.peso * s.reps);
 }

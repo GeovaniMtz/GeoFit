@@ -2,6 +2,7 @@ import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../presentation/screens/detalle_sesion_screen.dart';
 import '../presentation/screens/entrenar_screen.dart';
 import '../presentation/screens/importar_rutina_screen.dart';
 import '../presentation/screens/main_shell.dart';
@@ -70,6 +71,15 @@ final appRouter = GoRouter(
       pageBuilder: (context, state) => _paginaDrillIn(
         state,
         RutinaFormScreen(rutinaId: int.parse(state.pathParameters['id']!)),
+      ),
+    ),
+    GoRoute(
+      path: '/historial/:sesionId',
+      pageBuilder: (context, state) => _paginaDrillIn(
+        state,
+        DetalleSesionScreen(
+          sesionId: int.parse(state.pathParameters['sesionId']!),
+        ),
       ),
     ),
     GoRoute(
