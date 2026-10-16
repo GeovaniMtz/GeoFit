@@ -36,6 +36,16 @@ jobs:
           dart run build_runner build --delete-conflicting-outputs
           git diff --exit-code -- lib/data/database.g.dart
 
+      # Si alguien cambia las tablas sin subir schemaVersion (o sin guardar
+      # el esquema nuevo con `dart run drift_dev make-migrations`), el
+      # esquema guardado de la versión actual ya no coincide y esto falla.
+      # Los tests de test/drift/ verifican además que cada migración deje la
+      # base igual que una recién creada y conserve los datos.
+      - name: Esquemas de migración al día
+        run: |
+          dart run drift_dev make-migrations
+          git diff --exit-code -- drift_schemas lib/data/database.steps.dart test/drift/geolift/generated
+
       - name: Análisis estático
         run: flutter analyze lib test
 

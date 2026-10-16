@@ -1,0 +1,10 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # Para `dart run drift_dev make-migrations`: guarda el esquema de
+          # cada versión en drift_schemas/ y genera los tests de migración
+          # en test/drift/.
+          databases:
+            geolift: lib/data/database.dart
