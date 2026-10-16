@@ -5,9 +5,9 @@ import 'package:intl/intl.dart';
 import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
+import '../widgets/anillo.dart';
 import '../widgets/comunes.dart';
 import '../widgets/estado_error.dart';
-import 'rutina_completada_screen.dart' show formatearDuracion;
 
 /// Lo que se hizo en una sesión pasada: cada ejercicio con sus series (peso,
 /// reps, RPE y PRs), en el orden en que se entrenaron, más la nota.
@@ -74,6 +74,7 @@ class _Resumen extends ConsumerWidget {
     final fecha = DateFormat("EEEE d 'de' MMMM · HH:mm", 'es')
         .format(detalle.sesion.fecha);
     final duracion = detalle.sesion.duracionSeg;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,22 +85,51 @@ class _Resumen extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
-        const SizedBox(height: GeoLiftSpacing.md),
-        Wrap(
-          spacing: GeoLiftSpacing.sm,
-          runSpacing: GeoLiftSpacing.sm,
+        const SizedBox(height: GeoLiftSpacing.xl),
+        // Cuatro métricas en grande, al estilo de un resumen de actividad.
+        Row(
           children: [
-            if (duracion != null && duracion > 0)
-              _Dato(Icons.timer_outlined, formatearDuracion(duracion)),
-            _Dato(Icons.repeat_rounded, '${detalle.totalSeries} sets'),
-            _Dato(Icons.fitness_center_rounded,
-                unidad.formatearConUnidad(detalle.volumenKg, decimales: 0)),
-            if (detalle.totalPrs > 0)
-              _Dato(
-                Icons.emoji_events_rounded,
-                detalle.totalPrs == 1 ? '1 PR' : '${detalle.totalPrs} PRs',
-                destacado: true,
+            Expanded(
+              child: _Metrica(
+                titulo: 'Duración',
+                valor: duracion == null || duracion < 60
+                    ? '—'
+                    : '${duracion ~/ 60}',
+                unidad: duracion == null || duracion < 60 ? null : 'MIN',
+                color: colorScheme.primary,
               ),
+            ),
+            Expanded(
+              child: _Metrica(
+                titulo: 'Volumen',
+                valor: NumberFormat('#,##0')
+                    .format(unidad.desdeKg(detalle.volumenKg).round()),
+                unidad: unidad.etiqueta,
+                color: colorScheme.secondary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: GeoLiftSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: _Metrica(
+                titulo: 'Series',
+                valor: '${detalle.totalSeries}',
+                color: colorScheme.onSurface,
+              ),
+            ),
+            Expanded(
+              child: _Metrica(
+                titulo: 'Récords',
+                valor: '${detalle.totalPrs}',
+                unidad: 'PR',
+                color: detalle.totalPrs > 0
+                    ? colorScheme.secondary
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ],
@@ -107,39 +137,27 @@ class _Resumen extends ConsumerWidget {
   }
 }
 
-class _Dato extends StatelessWidget {
-  final IconData icono;
-  final String texto;
-  final bool destacado;
-  const _Dato(this.icono, this.texto, {this.destacado = false});
+class _Metrica extends StatelessWidget {
+  final String titulo;
+  final String valor;
+  final String? unidad;
+  final Color color;
+
+  const _Metrica({
+    required this.titulo,
+    required this.valor,
+    this.unidad,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final color = destacado ? colorScheme.secondary : colorScheme.primary;
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: GeoLiftSpacing.md, vertical: 6),
-      decoration: BoxDecoration(
-        color: destacado
-            ? colorScheme.secondary.withValues(alpha: 0.14)
-            : colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icono, size: 16, color: color),
-          const SizedBox(width: 6),
-          Text(
-            texto,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(titulo, style: Theme.of(context).textTheme.titleSmall),
+        NumeroConUnidad(valor, unidad: unidad, tamano: 36, color: color),
+      ],
     );
   }
 }
@@ -249,6 +267,8 @@ class _TarjetaEjercicio extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: GeoLiftSpacing.md),
+            _BarrasSeries(series: ejercicio.series),
+            const SizedBox(height: GeoLiftSpacing.sm),
             for (final s in ejercicio.series)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
@@ -293,6 +313,45 @@ class _TarjetaEjercicio extends ConsumerWidget {
                   ],
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Una barra por serie, alta según su volumen (peso × reps); los récords
+/// en verde. Se ve de un vistazo si las series cayeron o se sostuvieron.
+class _BarrasSeries extends StatelessWidget {
+  final List<RegistrosSetData> series;
+  const _BarrasSeries({required this.series});
+
+  @override
+  Widget build(BuildContext context) {
+    if (series.isEmpty) return const SizedBox.shrink();
+    final colorScheme = Theme.of(context).colorScheme;
+    final volumenes = [for (final s in series) s.peso * s.reps];
+    final maximo = volumenes.reduce((a, b) => a > b ? a : b);
+    return ExcludeSemantics(
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < series.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(
+                child: Container(
+                  height: maximo <= 0 ? 8 : 8 + 36 * volumenes[i] / maximo,
+                  decoration: BoxDecoration(
+                    color: series[i].esPr
+                        ? colorScheme.secondary
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

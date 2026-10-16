@@ -5,7 +5,7 @@ import '../../../domain/progresion_service.dart';
 
 /// Qué hacer hoy con este ejercicio según las sesiones anteriores: subir
 /// peso, mantenerlo o descargar. El peso ya viene precargado en los
-/// controles; la tarjeta explica por qué.
+/// controles; el aviso explica por qué.
 class TarjetaSugerencia extends StatelessWidget {
   final Sugerencia sugerencia;
   final String pesoTexto;
@@ -35,16 +35,16 @@ class TarjetaSugerencia extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.all(GeoLiftSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.lg, GeoLiftSpacing.md,
+          GeoLiftSpacing.lg, GeoLiftSpacing.md),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(GeoLiftRadius.md),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icono, color: color),
+          Icon(icono, color: color, size: 22),
           const SizedBox(width: GeoLiftSpacing.md),
           Expanded(
             child: Column(
@@ -54,10 +54,10 @@ class TarjetaSugerencia extends StatelessWidget {
                   titulo,
                   style: Theme.of(context)
                       .textTheme
-                      .titleMedium
+                      .titleSmall
                       ?.copyWith(color: color),
                 ),
-                const SizedBox(height: GeoLiftSpacing.xs),
+                const SizedBox(height: 2),
                 Text(sugerencia.motivo,
                     style: Theme.of(context).textTheme.bodySmall),
               ],

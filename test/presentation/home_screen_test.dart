@@ -22,7 +22,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Hoy es '), findsOneWidget);
+    expect(find.text('Hoy'), findsOneWidget);
   });
 
   testWidgets(

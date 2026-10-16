@@ -82,8 +82,11 @@ class _ProgresoScreenState extends ConsumerState<ProgresoScreen> {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
-                GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
+            padding: const EdgeInsets.fromLTRB(
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.sm,
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.bajoBarra),
             children: [
               const EncabezadoSeccion('Fuerza'),
               DropdownButtonFormField<int>(

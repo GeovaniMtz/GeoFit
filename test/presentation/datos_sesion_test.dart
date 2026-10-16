@@ -135,6 +135,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
       expect(find.text('¡RUTINA COMPLETADA!'), findsOneWidget);

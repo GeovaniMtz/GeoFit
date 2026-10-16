@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import '../../core/theme.dart';
 import '../../data/database.dart';
 import '../providers/providers.dart';
+import '../widgets/anillo.dart';
 import '../widgets/comunes.dart';
 
 class AjustesScreen extends ConsumerWidget {
@@ -19,7 +20,7 @@ class AjustesScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Ajustes')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
-            GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
+            GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.bajoBarra),
         children: [
           const EncabezadoSeccion('Apariencia'),
           Card(
@@ -65,6 +66,9 @@ class AjustesScreen extends ConsumerWidget {
               ),
             ),
           ),
+          const SizedBox(height: GeoLiftSpacing.xxl),
+          const EncabezadoSeccion('Meta semanal'),
+          const _TarjetaMetaSemanal(),
           const SizedBox(height: GeoLiftSpacing.xxl),
           const EncabezadoSeccion('Unidad de peso'),
           Card(
@@ -310,5 +314,52 @@ class _EstadoRespaldoAutomatico extends ConsumerWidget {
       1 => 'último ayer',
       _ => 'último hace $dias días',
     };
+  }
+}
+
+/// Cuántas sesiones por semana se propone entrenar: es el anillo de fuera
+/// en Inicio.
+class _TarjetaMetaSemanal extends ConsumerWidget {
+  const _TarjetaMetaSemanal();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final meta = ref.watch(metaSesionesSemanaProvider).valueOrNull ?? 4;
+    final db = ref.read(databaseProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(GeoLiftSpacing.lg),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: meta > 1
+                  ? () => db.actualizarMetaSesionesSemana(meta - 1)
+                  : null,
+              tooltip: 'Menos sesiones',
+              icon: const Icon(Icons.remove_rounded),
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  NumeroConUnidad('$meta',
+                      tamano: 40, color: Theme.of(context).colorScheme.primary),
+                  Text(
+                    meta == 1 ? 'sesión por semana' : 'sesiones por semana',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: meta < 7
+                  ? () => db.actualizarMetaSesionesSemana(meta + 1)
+                  : null,
+              tooltip: 'Más sesiones',
+              icon: const Icon(Icons.add_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolift/data/database.dart';
 import 'package:geolift/presentation/providers/providers.dart';
 import 'package:geolift/presentation/screens/detalle_sesion_screen.dart';
+import 'package:geolift/presentation/widgets/anillo.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 void main() {
@@ -92,8 +93,12 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Día A'), findsOneWidget);
-      expect(find.text('3 sets'), findsOneWidget);
-      expect(find.text('1 PR'), findsOneWidget);
+      // Métricas grandes: 3 series y 1 récord.
+      Finder metrica(String numero, [String? unidad]) =>
+          find.byWidgetPredicate((w) =>
+              w is NumeroConUnidad && w.numero == numero && w.unidad == unidad);
+      expect(metrica('3'), findsOneWidget);
+      expect(metrica('1', 'PR'), findsOneWidget);
       expect(find.text('Press de banca'), findsOneWidget);
       expect(find.text('60 kg × 8'), findsOneWidget);
       expect(find.text('RPE 8'), findsOneWidget);

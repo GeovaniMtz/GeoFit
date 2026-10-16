@@ -25,4 +25,13 @@ extension ConfiguracionQueries on AppDatabase {
     await (update(configuracion)..where((c) => c.id.equals(config.id)))
         .write(ConfiguracionCompanion(unidadPeso: Value(unidad)));
   }
+
+  /// Guarda cuántas sesiones por semana se propone entrenar (1 a 7).
+  Future<void> actualizarMetaSesionesSemana(int meta) async {
+    final config = await obtenerConfiguracion();
+    await (update(configuracion)..where((c) => c.id.equals(config.id)))
+        .write(ConfiguracionCompanion(
+      metaSesionesSemana: Value(meta.clamp(1, 7)),
+    ));
+  }
 }

@@ -35,8 +35,11 @@ class HistorialScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
-                GeoLiftSpacing.sm, GeoLiftSpacing.page, GeoLiftSpacing.xl),
+            padding: const EdgeInsets.fromLTRB(
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.sm,
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.bajoBarra),
             itemCount: lista.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: GeoLiftSpacing.md),

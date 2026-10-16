@@ -16,42 +16,47 @@ class ListaSeries extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const EncabezadoSeccion('Sets registrados'),
-        for (final s in series)
-          Padding(
-            padding: const EdgeInsets.only(bottom: GeoLiftSpacing.sm),
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: GeoLiftSpacing.lg, vertical: GeoLiftSpacing.md),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(GeoLiftRadius.md),
-                border: Border.all(color: colorScheme.outlineVariant),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_rounded,
-                      size: 18, color: colorScheme.secondary),
-                  const SizedBox(width: GeoLiftSpacing.md),
-                  Expanded(
-                    child: Text('Serie ${s.numeroSet}',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                  ),
-                  Text(
-                    '${unidad.formatear(s.pesoKg)} ${unidad.name} × ${s.reps}'
-                    '${s.rpe == null ? '' : '  @${s.rpe!.toStringAsFixed(0)}'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        Card(
+          child: Column(
+            children: [
+              for (var i = 0; i < series.length; i++) ...[
+                if (i > 0)
+                  const Divider(indent: GeoLiftSpacing.lg, endIndent: 0),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: GeoLiftSpacing.lg,
+                      vertical: GeoLiftSpacing.md),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          size: 18, color: colorScheme.secondary),
+                      const SizedBox(width: GeoLiftSpacing.md),
+                      Expanded(
+                        child: Text('Serie ${series[i].numeroSet}',
+                            style: textTheme.bodyMedium),
+                      ),
+                      Text(
+                        '${unidad.formatear(series[i].pesoKg)} ${unidad.name} × '
+                        '${series[i].reps}'
+                        '${series[i].rpe == null ? '' : '  @${series[i].rpe!.toStringAsFixed(0)}'}',
+                        style: textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurface,
                           fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              ],
+            ],
           ),
+        ),
       ],
     );
   }

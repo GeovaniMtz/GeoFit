@@ -107,6 +107,59 @@ extension SesionesQueries on AppDatabase {
         .toList();
   }
 
+  /// Resumen de la semana de [ahora] (lunes a domingo) y el volumen de la
+  /// semana anterior, para comparar.
+  Future<ResumenSemana> resumenSemana(DateTime ahora) async {
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final inicio = hoy.subtract(Duration(days: hoy.weekday - 1));
+    final fin = inicio.add(const Duration(days: 7));
+    final inicioAnterior = inicio.subtract(const Duration(days: 7));
+
+    final sesiones = await (select(sesionesEntrenamiento)
+          ..where((s) =>
+              s.fecha.isBiggerOrEqualValue(inicioAnterior) &
+              s.fecha.isSmallerThanValue(fin)))
+        .get();
+    final porId = {for (final s in sesiones) s.id: s};
+    final sets = porId.isEmpty
+        ? <RegistrosSetData>[]
+        : await (select(registrosSet)
+              ..where((r) => r.sesionId.isIn(porId.keys)))
+            .get();
+
+    final sesionesConSeries = <int>{};
+    final dias = <int>{};
+    var series = 0;
+    var prs = 0;
+    var volumen = 0.0;
+    var volumenAnterior = 0.0;
+    for (final set in sets) {
+      final sesion = porId[set.sesionId]!;
+      if (sesion.fecha.isBefore(inicio)) {
+        volumenAnterior += set.peso * set.reps;
+        continue;
+      }
+      sesionesConSeries.add(sesion.id);
+      dias.add(sesion.fecha.weekday);
+      series++;
+      if (set.esPr) prs++;
+      volumen += set.peso * set.reps;
+    }
+    final segundos = sesionesConSeries.fold<int>(
+        0, (total, id) => total + (porId[id]!.duracionSeg ?? 0));
+
+    return ResumenSemana(
+      inicio: inicio,
+      sesiones: sesionesConSeries.length,
+      diasEntrenados: dias,
+      series: series,
+      prs: prs,
+      volumenKg: volumen,
+      volumenSemanaAnteriorKg: volumenAnterior,
+      segundos: segundos,
+    );
+  }
+
   /// Todo lo de una sesión para la pantalla de detalle: el día entrenado y
   /// cada ejercicio con sus series, en el orden en que se ENTRENARON (por
   /// el primer set de cada uno — si se aplazó un ejercicio, aparece donde
@@ -259,4 +312,32 @@ class EjercicioDeSesion {
 
   double get volumenKg =>
       series.fold(0.0, (total, s) => total + s.peso * s.reps);
+}
+
+/// Lo entrenado en una semana (lunes a domingo), para el anillo y las
+/// métricas de Inicio. Solo cuentan las sesiones con al menos una serie:
+/// abrir "Entrenar" y salir sin registrar nada no suma.
+class ResumenSemana {
+  /// Lunes 00:00 de la semana.
+  final DateTime inicio;
+  final int sesiones;
+
+  /// Días entrenados, 1 = lunes … 7 = domingo.
+  final Set<int> diasEntrenados;
+  final int series;
+  final int prs;
+  final double volumenKg;
+  final double volumenSemanaAnteriorKg;
+  final int segundos;
+
+  const ResumenSemana({
+    required this.inicio,
+    required this.sesiones,
+    required this.diasEntrenados,
+    required this.series,
+    required this.prs,
+    required this.volumenKg,
+    required this.volumenSemanaAnteriorKg,
+    required this.segundos,
+  });
 }

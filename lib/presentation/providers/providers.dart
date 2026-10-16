@@ -140,6 +140,24 @@ final historialDeSesionesProvider = StreamProvider<List<SesionResumen>>((ref) {
   );
 });
 
+/// Lo entrenado esta semana (lunes a domingo) para el anillo de Inicio.
+final resumenSemanaProvider = StreamProvider<ResumenSemana>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.sesionesEntrenamiento, db.registrosSet],
+    () => db.resumenSemana(DateTime.now()),
+  );
+});
+
+/// Sesiones por semana que el usuario se propone entrenar.
+final metaSesionesSemanaProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.observar(
+    [db.configuracion],
+    () async => (await db.obtenerConfiguracion()).metaSesionesSemana,
+  );
+});
+
 final detalleSesionProvider =
     StreamProvider.family<DetalleSesion?, int>((ref, sesionId) {
   final db = ref.watch(databaseProvider);
