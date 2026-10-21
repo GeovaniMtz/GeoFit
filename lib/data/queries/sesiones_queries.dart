@@ -107,6 +107,110 @@ extension SesionesQueries on AppDatabase {
         .toList();
   }
 
+  /// Resumen de la semana de [ahora] (lunes a domingo) y el volumen de la
+  /// semana anterior, para comparar.
+  Future<ResumenSemana> resumenSemana(DateTime ahora) async {
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final inicio = hoy.subtract(Duration(days: hoy.weekday - 1));
+    final fin = inicio.add(const Duration(days: 7));
+    final inicioAnterior = inicio.subtract(const Duration(days: 7));
+
+    final sesiones = await (select(sesionesEntrenamiento)
+          ..where((s) =>
+              s.fecha.isBiggerOrEqualValue(inicioAnterior) &
+              s.fecha.isSmallerThanValue(fin)))
+        .get();
+    final porId = {for (final s in sesiones) s.id: s};
+    final sets = porId.isEmpty
+        ? <RegistrosSetData>[]
+        : await (select(registrosSet)
+              ..where((r) => r.sesionId.isIn(porId.keys)))
+            .get();
+
+    final sesionesConSeries = <int>{};
+    final dias = <int>{};
+    var series = 0;
+    var prs = 0;
+    var volumen = 0.0;
+    var volumenAnterior = 0.0;
+    for (final set in sets) {
+      final sesion = porId[set.sesionId]!;
+      if (sesion.fecha.isBefore(inicio)) {
+        volumenAnterior += set.peso * set.reps;
+        continue;
+      }
+      sesionesConSeries.add(sesion.id);
+      dias.add(sesion.fecha.weekday);
+      series++;
+      if (set.esPr) prs++;
+      volumen += set.peso * set.reps;
+    }
+    final segundos = sesionesConSeries.fold<int>(
+        0, (total, id) => total + (porId[id]!.duracionSeg ?? 0));
+
+    return ResumenSemana(
+      inicio: inicio,
+      sesiones: sesionesConSeries.length,
+      diasEntrenados: dias,
+      series: series,
+      prs: prs,
+      volumenKg: volumen,
+      volumenSemanaAnteriorKg: volumenAnterior,
+      segundos: segundos,
+    );
+  }
+
+  /// Todo lo de una sesión para la pantalla de detalle: el día entrenado y
+  /// cada ejercicio con sus series, en el orden en que se ENTRENARON (por
+  /// el primer set de cada uno — si se aplazó un ejercicio, aparece donde
+  /// de verdad se hizo, no donde estaba en la rutina). Null si la sesión ya
+  /// no existe.
+  Future<DetalleSesion?> detalleDeSesion(int sesionId) async {
+    final cabecera = await (select(sesionesEntrenamiento).join([
+      innerJoin(rutinaDias,
+          rutinaDias.id.equalsExp(sesionesEntrenamiento.rutinaDiaId)),
+    ])
+          ..where(sesionesEntrenamiento.id.equals(sesionId)))
+        .getSingleOrNull();
+    if (cabecera == null) return null;
+
+    final filas = await (select(registrosSet).join([
+      innerJoin(rutinaEjercicios,
+          rutinaEjercicios.id.equalsExp(registrosSet.rutinaEjercicioId)),
+      innerJoin(
+          ejercicios, ejercicios.id.equalsExp(rutinaEjercicios.ejercicioId)),
+    ])
+          ..where(registrosSet.sesionId.equals(sesionId))
+          ..orderBy([OrderingTerm.asc(registrosSet.id)]))
+        .get();
+
+    // Map conserva el orden de inserción: el del primer set de cada uno.
+    final porEjercicio = <int, EjercicioDeSesion>{};
+    for (final f in filas) {
+      final re = f.readTable(rutinaEjercicios);
+      porEjercicio
+          .putIfAbsent(
+            re.id,
+            () => EjercicioDeSesion(
+              ejercicioId: re.ejercicioId,
+              nombre: f.readTable(ejercicios).nombre,
+              series: [],
+            ),
+          )
+          .series
+          .add(f.readTable(registrosSet));
+    }
+    for (final e in porEjercicio.values) {
+      e.series.sort((a, b) => a.numeroSet.compareTo(b.numeroSet));
+    }
+
+    return DetalleSesion(
+      sesion: cabecera.readTable(sesionesEntrenamiento),
+      nombreDia: cabecera.readTable(rutinaDias).nombreDia,
+      ejercicios: porEjercicio.values.toList(),
+    );
+  }
+
   /// Sesiones pasadas con el nombre del día entrenado y un resumen (sets y
   /// volumen total) para que Historial no necesite un query por sesión.
   Future<List<SesionResumen>> historialDeSesiones() async {
@@ -166,5 +270,74 @@ class SesionResumen {
     required this.nombreDia,
     required this.totalSets,
     required this.volumenTotal,
+  });
+}
+
+/// Una sesión con sus ejercicios y series, para la pantalla de detalle.
+class DetalleSesion {
+  final SesionesEntrenamientoData sesion;
+  final String nombreDia;
+
+  /// En el orden en que se entrenaron.
+  final List<EjercicioDeSesion> ejercicios;
+
+  const DetalleSesion({
+    required this.sesion,
+    required this.nombreDia,
+    required this.ejercicios,
+  });
+
+  int get totalSeries =>
+      ejercicios.fold(0, (total, e) => total + e.series.length);
+
+  /// Σ peso × reps de todas las series, en kg.
+  double get volumenKg =>
+      ejercicios.fold(0.0, (total, e) => total + e.volumenKg);
+
+  int get totalPrs => ejercicios.fold(
+      0, (total, e) => total + e.series.where((s) => s.esPr).length);
+}
+
+/// Un ejercicio dentro de una sesión, con sus series en orden.
+class EjercicioDeSesion {
+  final int ejercicioId;
+  final String nombre;
+  final List<RegistrosSetData> series;
+
+  const EjercicioDeSesion({
+    required this.ejercicioId,
+    required this.nombre,
+    required this.series,
+  });
+
+  double get volumenKg =>
+      series.fold(0.0, (total, s) => total + s.peso * s.reps);
+}
+
+/// Lo entrenado en una semana (lunes a domingo), para el anillo y las
+/// métricas de Inicio. Solo cuentan las sesiones con al menos una serie:
+/// abrir "Entrenar" y salir sin registrar nada no suma.
+class ResumenSemana {
+  /// Lunes 00:00 de la semana.
+  final DateTime inicio;
+  final int sesiones;
+
+  /// Días entrenados, 1 = lunes … 7 = domingo.
+  final Set<int> diasEntrenados;
+  final int series;
+  final int prs;
+  final double volumenKg;
+  final double volumenSemanaAnteriorKg;
+  final int segundos;
+
+  const ResumenSemana({
+    required this.inicio,
+    required this.sesiones,
+    required this.diasEntrenados,
+    required this.series,
+    required this.prs,
+    required this.volumenKg,
+    required this.volumenSemanaAnteriorKg,
+    required this.segundos,
   });
 }

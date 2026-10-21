@@ -78,4 +78,8 @@ class Configuracion extends Table {
   TextColumn get metaPrincipal => text().nullable()();
   // 'sistema' | 'claro' | 'oscuro'
   TextColumn get tema => text().withDefault(const Constant('sistema'))();
+
+  // Cuántas sesiones por semana se propone entrenar (anillo de Inicio).
+  IntColumn get metaSesionesSemana =>
+      integer().withDefault(const Constant(4))();
 }

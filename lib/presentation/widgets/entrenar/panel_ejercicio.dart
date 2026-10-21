@@ -11,7 +11,6 @@ import 'consola_peso_reps.dart';
 import 'encabezado_ejercicio.dart';
 import 'lista_series.dart';
 import 'overlay_celebracion.dart';
-import 'progreso_series.dart';
 import 'tarjeta_descanso.dart';
 import 'tarjeta_sugerencia.dart';
 
@@ -198,12 +197,9 @@ class _PanelEjercicioState extends ConsumerState<PanelEjercicio>
                 ),
               ],
               const SizedBox(height: GeoLiftSpacing.xl),
-              ProgresoSeries(
+              ConsolaPesoReps(
                 numeroSet: estado.numeroSet,
                 totalSeries: estado.totalSeries,
-              ),
-              const SizedBox(height: GeoLiftSpacing.lg),
-              ConsolaPesoReps(
                 pesoTexto: unidad.formatear(estado.pesoKg),
                 unidadEtiqueta: unidad.etiqueta,
                 reps: estado.reps,

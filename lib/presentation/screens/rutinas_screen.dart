@@ -31,8 +31,8 @@ class RutinasScreen extends ConsumerWidget {
       context: context,
       builder: (context) => SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page, 0,
-              GeoLiftSpacing.page, GeoLiftSpacing.page),
+          padding: const EdgeInsets.fromLTRB(
+              GeoLiftSpacing.page, 0, GeoLiftSpacing.page, GeoLiftSpacing.page),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,8 +54,7 @@ class RutinasScreen extends ConsumerWidget {
                     child: _OpcionOrigen(
                       icono: Icons.document_scanner_outlined,
                       texto: 'Importar desde texto',
-                      onTap: () =>
-                          Navigator.pop(context, '/rutinas/importar'),
+                      onTap: () => Navigator.pop(context, '/rutinas/importar'),
                     ),
                   ),
                 ],
@@ -75,10 +74,14 @@ class RutinasScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Rutinas')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _elegirOrigenDeRutina(context),
-        tooltip: 'Nueva rutina',
-        child: const Icon(Icons.add_rounded),
+      // Subido para quedar por encima de la barra de navegación flotante.
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 76),
+        child: FloatingActionButton(
+          onPressed: () => _elegirOrigenDeRutina(context),
+          tooltip: 'Nueva rutina',
+          child: const Icon(Icons.add_rounded),
+        ),
       ),
       body: rutinas.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -94,8 +97,11 @@ class RutinasScreen extends ConsumerWidget {
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(GeoLiftSpacing.page,
-                GeoLiftSpacing.sm, GeoLiftSpacing.page, 112),
+            padding: const EdgeInsets.fromLTRB(
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.sm,
+                GeoLiftSpacing.page,
+                GeoLiftSpacing.bajoBarra + 72),
             itemCount: lista.length,
             separatorBuilder: (_, __) =>
                 const SizedBox(height: GeoLiftSpacing.md),
@@ -124,9 +130,8 @@ class RutinasScreen extends ConsumerWidget {
                           ),
                         ),
                         Icon(Icons.chevron_right_rounded,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                       ],
                     ),
                   ),
@@ -149,7 +154,8 @@ class _Monograma extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final inicial = nombre.trim().isEmpty ? '?' : nombre.trim()[0].toUpperCase();
+    final inicial =
+        nombre.trim().isEmpty ? '?' : nombre.trim()[0].toUpperCase();
     return Container(
       width: 48,
       height: 48,
@@ -193,12 +199,9 @@ class _OpcionOrigen extends StatelessWidget {
               IconoEnCaja(icono),
               const SizedBox(height: GeoLiftSpacing.md),
               Text(texto,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w700)),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface,
+                      fontWeight: FontWeight.w700)),
             ],
           ),
         ),

@@ -24,9 +24,8 @@ class CajaReferencia extends StatelessWidget {
       padding: const EdgeInsets.symmetric(
           horizontal: GeoLiftSpacing.lg, vertical: GeoLiftSpacing.md),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHigh,
+        color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(GeoLiftRadius.md),
-        border: Border.all(color: colorScheme.outlineVariant),
       ),
       child: Row(
         children: [

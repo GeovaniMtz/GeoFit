@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme.dart';
-import 'boton_stepper.dart';
+import '../anillo.dart';
 
-/// La "consola" de la serie actual: peso al centro en grande, reps abajo,
-/// ambos con steppers −/+ a los lados, y el selector de RPE. Solo dibuja y
-/// reenvía los toques; si [habilitada] es false los controles se apagan.
+/// La "consola" de la serie actual: un anillo que se llena con las series
+/// hechas y, al centro, el peso en grande con su unidad y las reps; debajo
+/// los −/+ de peso y de reps en dos píldoras, y el selector de RPE. Solo
+/// dibuja y reenvía los toques; si [habilitada] es false se apagan.
 class ConsolaPesoReps extends StatelessWidget {
+  final int numeroSet;
+  final int totalSeries;
   final String pesoTexto;
   final String unidadEtiqueta;
   final int reps;
@@ -20,6 +23,8 @@ class ConsolaPesoReps extends StatelessWidget {
 
   const ConsolaPesoReps({
     super.key,
+    required this.numeroSet,
+    required this.totalSeries,
     required this.pesoTexto,
     required this.unidadEtiqueta,
     required this.reps,
@@ -36,72 +41,152 @@ class ConsolaPesoReps extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(GeoLiftSpacing.lg),
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(GeoLiftRadius.lg),
-        border: Border.all(color: colorScheme.outlineVariant),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              BotonStepper(
-                icono: Icons.remove_rounded,
-                tooltip: 'Restar peso',
-                onPressed: habilitada ? onBajarPeso : null,
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(pesoTexto,
-                        style: textTheme.displayMedium?.copyWith(height: 1.05)),
-                    Text(unidadEtiqueta, style: textTheme.labelSmall),
-                  ],
-                ),
-              ),
-              BotonStepper(
-                icono: Icons.add_rounded,
-                tooltip: 'Sumar peso',
-                onPressed: habilitada ? onSubirPeso : null,
+    final completas = numeroSet > totalSeries;
+    final serieMostrada = completas ? totalSeries : numeroSet;
+    final hechas = (numeroSet - 1).clamp(0, totalSeries);
+
+    return Column(
+      children: [
+        Center(
+          child: AnillosProgreso(
+            tamano: 240,
+            grosor: 18,
+            etiquetaSemantica: 'Serie $serieMostrada de $totalSeries',
+            anillos: [
+              Anillo(
+                valor: totalSeries == 0 ? 0 : hechas / totalSeries,
+                color: colorScheme.primary,
+                pista: GeoLiftExtra.of(context).pistaAcento,
               ),
             ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: GeoLiftSpacing.lg),
-            child: Divider(),
-          ),
-          Row(
-            children: [
-              BotonStepper(
-                icono: Icons.remove_rounded,
-                tamano: 48,
-                tooltip: 'Restar repeticiones',
-                onPressed: habilitada ? onBajarReps : null,
-              ),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'SERIE $serieMostrada/$totalSeries',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+                ),
+                // "137.5LB" a 60 puntos no cabe dentro del anillo: se encoge
+                // lo necesario para no desbordarse.
+                SizedBox(
+                  width: 184,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: NumeroConUnidad(
+                      pesoTexto,
+                      unidad: unidadEtiqueta,
+                      tamano: 60,
+                      colorUnidad: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text('$reps', style: textTheme.headlineMedium),
-                    const SizedBox(width: GeoLiftSpacing.sm),
-                    Text('REPS', style: textTheme.labelSmall),
+                    Text('× ',
+                        style: estiloNumero(22,
+                            color: colorScheme.onSurfaceVariant)),
+                    Text('$reps', style: estiloNumero(22)),
+                    Text(' REPS',
+                        style: estiloNumero(13,
+                            color: colorScheme.onSurfaceVariant)),
                   ],
                 ),
-              ),
-              BotonStepper(
-                icono: Icons.add_rounded,
-                tamano: 48,
-                tooltip: 'Sumar repeticiones',
-                onPressed: habilitada ? onSubirReps : null,
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: GeoLiftSpacing.lg),
-          SelectorRpe(valor: rpe, onCambio: habilitada ? onElegirRpe : null),
+        ),
+        const SizedBox(height: GeoLiftSpacing.lg),
+        Row(
+          children: [
+            Expanded(
+              child: _PildoraStepper(
+                etiqueta: 'PESO',
+                tooltipMenos: 'Restar peso',
+                tooltipMas: 'Sumar peso',
+                onMenos: habilitada ? onBajarPeso : null,
+                onMas: habilitada ? onSubirPeso : null,
+              ),
+            ),
+            const SizedBox(width: GeoLiftSpacing.md),
+            Expanded(
+              child: _PildoraStepper(
+                etiqueta: 'REPS',
+                tooltipMenos: 'Restar repeticiones',
+                tooltipMas: 'Sumar repeticiones',
+                onMenos: habilitada ? onBajarReps : null,
+                onMas: habilitada ? onSubirReps : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: GeoLiftSpacing.md),
+        SelectorRpe(valor: rpe, onCambio: habilitada ? onElegirRpe : null),
+      ],
+    );
+  }
+}
+
+/// − ETIQUETA + dentro de una píldora, pensada para el pulgar.
+class _PildoraStepper extends StatelessWidget {
+  final String etiqueta;
+  final String tooltipMenos;
+  final String tooltipMas;
+  final VoidCallback? onMenos;
+  final VoidCallback? onMas;
+
+  const _PildoraStepper({
+    required this.etiqueta,
+    required this.tooltipMenos,
+    required this.tooltipMas,
+    required this.onMenos,
+    required this.onMas,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final estiloBoton = IconButton.styleFrom(
+      backgroundColor: colorScheme.surfaceContainerHighest,
+      minimumSize: const Size(52, 52),
+    );
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: ShapeDecoration(
+        color: colorScheme.surfaceContainerLow,
+        shape: const StadiumBorder(),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onMenos,
+            tooltip: tooltipMenos,
+            style: estiloBoton,
+            icon: const Icon(Icons.remove_rounded, size: 26),
+          ),
+          Expanded(
+            child: Text(
+              etiqueta,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1,
+                  ),
+            ),
+          ),
+          IconButton(
+            onPressed: onMas,
+            tooltip: tooltipMas,
+            style: estiloBoton,
+            icon: const Icon(Icons.add_rounded, size: 26),
+          ),
         ],
       ),
     );
@@ -133,9 +218,15 @@ class SelectorRpe extends StatelessWidget {
       children: [
         Tooltip(
           message: 'Esfuerzo percibido (opcional)',
-          child: Text('RPE', style: Theme.of(context).textTheme.labelSmall),
+          child: SizedBox(
+            width: 40,
+            child: Text('RPE',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w800,
+                    )),
+          ),
         ),
-        const SizedBox(width: GeoLiftSpacing.md),
         for (var i = 0; i < _valores.length; i++)
           Expanded(
             child: Padding(
@@ -145,22 +236,23 @@ class SelectorRpe extends StatelessWidget {
                 child: Material(
                   color: valor == _valores[i]
                       ? colorScheme.primary
-                      : colorScheme.surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+                      : colorScheme.surfaceContainerLow,
+                  shape: const StadiumBorder(),
                   child: InkWell(
-                    borderRadius: BorderRadius.circular(GeoLiftRadius.sm),
+                    customBorder: const StadiumBorder(),
                     onTap: onCambio == null
                         ? null
                         : () => onCambio!(
                             valor == _valores[i] ? null : _valores[i]),
                     child: SizedBox(
-                      height: 36,
+                      height: 40,
                       child: Center(
                         child: Text(
                           _valores[i].toStringAsFixed(0),
                           style: TextStyle(
                             fontFamily: 'Manrope',
                             fontWeight: FontWeight.w800,
+                            fontSize: 15,
                             color: valor == _valores[i]
                                 ? colorScheme.onPrimary
                                 : colorScheme.onSurfaceVariant,

@@ -2283,8 +2283,17 @@ class $ConfiguracionTable extends Configuracion
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('sistema'));
+  static const VerificationMeta _metaSesionesSemanaMeta =
+      const VerificationMeta('metaSesionesSemana');
   @override
-  List<GeneratedColumn> get $columns => [id, unidadPeso, metaPrincipal, tema];
+  late final GeneratedColumn<int> metaSesionesSemana = GeneratedColumn<int>(
+      'meta_sesiones_semana', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(4));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, unidadPeso, metaPrincipal, tema, metaSesionesSemana];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2314,6 +2323,12 @@ class $ConfiguracionTable extends Configuracion
       context.handle(
           _temaMeta, tema.isAcceptableOrUnknown(data['tema']!, _temaMeta));
     }
+    if (data.containsKey('meta_sesiones_semana')) {
+      context.handle(
+          _metaSesionesSemanaMeta,
+          metaSesionesSemana.isAcceptableOrUnknown(
+              data['meta_sesiones_semana']!, _metaSesionesSemanaMeta));
+    }
     return context;
   }
 
@@ -2331,6 +2346,8 @@ class $ConfiguracionTable extends Configuracion
           .read(DriftSqlType.string, data['${effectivePrefix}meta_principal']),
       tema: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tema'])!,
+      metaSesionesSemana: attachedDatabase.typeMapping.read(
+          DriftSqlType.int, data['${effectivePrefix}meta_sesiones_semana'])!,
     );
   }
 
@@ -2346,11 +2363,13 @@ class ConfiguracionData extends DataClass
   final String unidadPeso;
   final String? metaPrincipal;
   final String tema;
+  final int metaSesionesSemana;
   const ConfiguracionData(
       {required this.id,
       required this.unidadPeso,
       this.metaPrincipal,
-      required this.tema});
+      required this.tema,
+      required this.metaSesionesSemana});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2360,6 +2379,7 @@ class ConfiguracionData extends DataClass
       map['meta_principal'] = Variable<String>(metaPrincipal);
     }
     map['tema'] = Variable<String>(tema);
+    map['meta_sesiones_semana'] = Variable<int>(metaSesionesSemana);
     return map;
   }
 
@@ -2371,6 +2391,7 @@ class ConfiguracionData extends DataClass
           ? const Value.absent()
           : Value(metaPrincipal),
       tema: Value(tema),
+      metaSesionesSemana: Value(metaSesionesSemana),
     );
   }
 
@@ -2382,6 +2403,7 @@ class ConfiguracionData extends DataClass
       unidadPeso: serializer.fromJson<String>(json['unidadPeso']),
       metaPrincipal: serializer.fromJson<String?>(json['metaPrincipal']),
       tema: serializer.fromJson<String>(json['tema']),
+      metaSesionesSemana: serializer.fromJson<int>(json['metaSesionesSemana']),
     );
   }
   @override
@@ -2392,6 +2414,7 @@ class ConfiguracionData extends DataClass
       'unidadPeso': serializer.toJson<String>(unidadPeso),
       'metaPrincipal': serializer.toJson<String?>(metaPrincipal),
       'tema': serializer.toJson<String>(tema),
+      'metaSesionesSemana': serializer.toJson<int>(metaSesionesSemana),
     };
   }
 
@@ -2399,13 +2422,15 @@ class ConfiguracionData extends DataClass
           {int? id,
           String? unidadPeso,
           Value<String?> metaPrincipal = const Value.absent(),
-          String? tema}) =>
+          String? tema,
+          int? metaSesionesSemana}) =>
       ConfiguracionData(
         id: id ?? this.id,
         unidadPeso: unidadPeso ?? this.unidadPeso,
         metaPrincipal:
             metaPrincipal.present ? metaPrincipal.value : this.metaPrincipal,
         tema: tema ?? this.tema,
+        metaSesionesSemana: metaSesionesSemana ?? this.metaSesionesSemana,
       );
   ConfiguracionData copyWithCompanion(ConfiguracionCompanion data) {
     return ConfiguracionData(
@@ -2416,6 +2441,9 @@ class ConfiguracionData extends DataClass
           ? data.metaPrincipal.value
           : this.metaPrincipal,
       tema: data.tema.present ? data.tema.value : this.tema,
+      metaSesionesSemana: data.metaSesionesSemana.present
+          ? data.metaSesionesSemana.value
+          : this.metaSesionesSemana,
     );
   }
 
@@ -2425,13 +2453,15 @@ class ConfiguracionData extends DataClass
           ..write('id: $id, ')
           ..write('unidadPeso: $unidadPeso, ')
           ..write('metaPrincipal: $metaPrincipal, ')
-          ..write('tema: $tema')
+          ..write('tema: $tema, ')
+          ..write('metaSesionesSemana: $metaSesionesSemana')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, unidadPeso, metaPrincipal, tema);
+  int get hashCode =>
+      Object.hash(id, unidadPeso, metaPrincipal, tema, metaSesionesSemana);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2439,7 +2469,8 @@ class ConfiguracionData extends DataClass
           other.id == this.id &&
           other.unidadPeso == this.unidadPeso &&
           other.metaPrincipal == this.metaPrincipal &&
-          other.tema == this.tema);
+          other.tema == this.tema &&
+          other.metaSesionesSemana == this.metaSesionesSemana);
 }
 
 class ConfiguracionCompanion extends UpdateCompanion<ConfiguracionData> {
@@ -2447,29 +2478,35 @@ class ConfiguracionCompanion extends UpdateCompanion<ConfiguracionData> {
   final Value<String> unidadPeso;
   final Value<String?> metaPrincipal;
   final Value<String> tema;
+  final Value<int> metaSesionesSemana;
   const ConfiguracionCompanion({
     this.id = const Value.absent(),
     this.unidadPeso = const Value.absent(),
     this.metaPrincipal = const Value.absent(),
     this.tema = const Value.absent(),
+    this.metaSesionesSemana = const Value.absent(),
   });
   ConfiguracionCompanion.insert({
     this.id = const Value.absent(),
     this.unidadPeso = const Value.absent(),
     this.metaPrincipal = const Value.absent(),
     this.tema = const Value.absent(),
+    this.metaSesionesSemana = const Value.absent(),
   });
   static Insertable<ConfiguracionData> custom({
     Expression<int>? id,
     Expression<String>? unidadPeso,
     Expression<String>? metaPrincipal,
     Expression<String>? tema,
+    Expression<int>? metaSesionesSemana,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (unidadPeso != null) 'unidad_peso': unidadPeso,
       if (metaPrincipal != null) 'meta_principal': metaPrincipal,
       if (tema != null) 'tema': tema,
+      if (metaSesionesSemana != null)
+        'meta_sesiones_semana': metaSesionesSemana,
     });
   }
 
@@ -2477,12 +2514,14 @@ class ConfiguracionCompanion extends UpdateCompanion<ConfiguracionData> {
       {Value<int>? id,
       Value<String>? unidadPeso,
       Value<String?>? metaPrincipal,
-      Value<String>? tema}) {
+      Value<String>? tema,
+      Value<int>? metaSesionesSemana}) {
     return ConfiguracionCompanion(
       id: id ?? this.id,
       unidadPeso: unidadPeso ?? this.unidadPeso,
       metaPrincipal: metaPrincipal ?? this.metaPrincipal,
       tema: tema ?? this.tema,
+      metaSesionesSemana: metaSesionesSemana ?? this.metaSesionesSemana,
     );
   }
 
@@ -2501,6 +2540,9 @@ class ConfiguracionCompanion extends UpdateCompanion<ConfiguracionData> {
     if (tema.present) {
       map['tema'] = Variable<String>(tema.value);
     }
+    if (metaSesionesSemana.present) {
+      map['meta_sesiones_semana'] = Variable<int>(metaSesionesSemana.value);
+    }
     return map;
   }
 
@@ -2510,7 +2552,8 @@ class ConfiguracionCompanion extends UpdateCompanion<ConfiguracionData> {
           ..write('id: $id, ')
           ..write('unidadPeso: $unidadPeso, ')
           ..write('metaPrincipal: $metaPrincipal, ')
-          ..write('tema: $tema')
+          ..write('tema: $tema, ')
+          ..write('metaSesionesSemana: $metaSesionesSemana')
           ..write(')'))
         .toString();
   }
@@ -4853,6 +4896,7 @@ typedef $$ConfiguracionTableCreateCompanionBuilder = ConfiguracionCompanion
   Value<String> unidadPeso,
   Value<String?> metaPrincipal,
   Value<String> tema,
+  Value<int> metaSesionesSemana,
 });
 typedef $$ConfiguracionTableUpdateCompanionBuilder = ConfiguracionCompanion
     Function({
@@ -4860,6 +4904,7 @@ typedef $$ConfiguracionTableUpdateCompanionBuilder = ConfiguracionCompanion
   Value<String> unidadPeso,
   Value<String?> metaPrincipal,
   Value<String> tema,
+  Value<int> metaSesionesSemana,
 });
 
 class $$ConfiguracionTableFilterComposer
@@ -4882,6 +4927,10 @@ class $$ConfiguracionTableFilterComposer
 
   ColumnFilters<String> get tema => $composableBuilder(
       column: $table.tema, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get metaSesionesSemana => $composableBuilder(
+      column: $table.metaSesionesSemana,
+      builder: (column) => ColumnFilters(column));
 }
 
 class $$ConfiguracionTableOrderingComposer
@@ -4905,6 +4954,10 @@ class $$ConfiguracionTableOrderingComposer
 
   ColumnOrderings<String> get tema => $composableBuilder(
       column: $table.tema, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get metaSesionesSemana => $composableBuilder(
+      column: $table.metaSesionesSemana,
+      builder: (column) => ColumnOrderings(column));
 }
 
 class $$ConfiguracionTableAnnotationComposer
@@ -4927,6 +4980,9 @@ class $$ConfiguracionTableAnnotationComposer
 
   GeneratedColumn<String> get tema =>
       $composableBuilder(column: $table.tema, builder: (column) => column);
+
+  GeneratedColumn<int> get metaSesionesSemana => $composableBuilder(
+      column: $table.metaSesionesSemana, builder: (column) => column);
 }
 
 class $$ConfiguracionTableTableManager extends RootTableManager<
@@ -4959,24 +5015,28 @@ class $$ConfiguracionTableTableManager extends RootTableManager<
             Value<String> unidadPeso = const Value.absent(),
             Value<String?> metaPrincipal = const Value.absent(),
             Value<String> tema = const Value.absent(),
+            Value<int> metaSesionesSemana = const Value.absent(),
           }) =>
               ConfiguracionCompanion(
             id: id,
             unidadPeso: unidadPeso,
             metaPrincipal: metaPrincipal,
             tema: tema,
+            metaSesionesSemana: metaSesionesSemana,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String> unidadPeso = const Value.absent(),
             Value<String?> metaPrincipal = const Value.absent(),
             Value<String> tema = const Value.absent(),
+            Value<int> metaSesionesSemana = const Value.absent(),
           }) =>
               ConfiguracionCompanion.insert(
             id: id,
             unidadPeso: unidadPeso,
             metaPrincipal: metaPrincipal,
             tema: tema,
+            metaSesionesSemana: metaSesionesSemana,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (

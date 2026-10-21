@@ -8,6 +8,7 @@ import 'generated/schema.dart';
 
 import 'generated/schema_v1.dart' as v1;
 import 'generated/schema_v2.dart' as v2;
+import 'generated/schema_v3.dart' as v3;
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -168,6 +169,36 @@ void main() {
         ]);
         expect(await newDb.select(newDb.configuracion).get(), const [
           v2.ConfiguracionData(id: 1, unidadPeso: 'lb', tema: 'sistema'),
+        ]);
+      },
+    );
+  });
+
+  test('de v2 a v3 se conservan los ajustes y la meta semanal queda en 4',
+      () async {
+    final creada = DateTime(2026, 9, 1, 7, 30).millisecondsSinceEpoch ~/ 1000;
+
+    await verifier.testWithDataIntegrity(
+      oldVersion: 2,
+      newVersion: 3,
+      createOld: v2.DatabaseAtV2.new,
+      createNew: v3.DatabaseAtV3.new,
+      openTestedDatabase: AppDatabase.new,
+      createItems: (batch, oldDb) {
+        batch.insertAll(oldDb.rutinas, [
+          v2.RutinasData(id: 1, nombre: 'Torso', activa: 1, creadaEn: creada),
+        ]);
+        batch.insertAll(oldDb.configuracion, const [
+          v2.ConfiguracionData(id: 1, unidadPeso: 'lb', tema: 'oscuro'),
+        ]);
+      },
+      validateItems: (newDb) async {
+        expect(await newDb.select(newDb.rutinas).get(), [
+          v3.RutinasData(id: 1, nombre: 'Torso', activa: 1, creadaEn: creada),
+        ]);
+        expect(await newDb.select(newDb.configuracion).get(), const [
+          v3.ConfiguracionData(
+              id: 1, unidadPeso: 'lb', tema: 'oscuro', metaSesionesSemana: 4),
         ]);
       },
     );

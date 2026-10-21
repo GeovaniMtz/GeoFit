@@ -85,6 +85,7 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
@@ -145,6 +146,7 @@ void main() {
       // Al registrar la única serie del primer ejercicio, la app avanza
       // sola al siguiente tras la celebración — sin necesidad de un
       // segundo toque.
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
@@ -209,6 +211,7 @@ void main() {
 
       // Al registrar la única serie del primer ejercicio, la app avanza
       // sola al siguiente tras la celebración.
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
       expect(find.text('Ejercicio 2 de 3'), findsOneWidget);
@@ -280,6 +283,7 @@ void main() {
         contains('serie 1/1'),
       );
 
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
@@ -353,6 +357,7 @@ void main() {
       // Registra la primera de las dos series de Press de banca y luego
       // decide que no puede seguir con él justo ahora (p. ej. la máquina
       // está ocupada).
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
@@ -367,11 +372,13 @@ void main() {
       expect(find.text('Próximo ejercicio: Peso muerto'), findsOneWidget);
 
       // Completa Sentadilla y Peso muerto con normalidad.
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
       expect(find.text('Ejercicio 2 de 3'), findsOneWidget);
       expect(find.text('Peso muerto'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('REGISTRAR SERIE'));
       await tester.tap(find.text('REGISTRAR SERIE'));
       await tester.pumpAndSettle();
 
